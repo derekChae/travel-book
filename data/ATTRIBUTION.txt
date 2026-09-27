@@ -1,0 +1,1 @@
+Place names: GeoNames (https://www.geonames.org/), cities5000 dataset, licensed CC BY 4.0. Reduced to name/country/lat/lon, Korean names chosen from alternate names where available.
