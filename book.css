@@ -1,0 +1,57 @@
+/* 책 페이지 (시안 C · 장면) — 앱, 발행본, PDF 공통 */
+.bk { --serif: "Noto Serif KR", "Nanum Myeongjo", "AppleMyungjo", serif;
+  --sans: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  display: grid; gap: 34px; width: min(1320px, calc(100vw - 48px), calc((100vh - 200px) * 1.5)); margin: 0 auto; }
+.bk .row { display: grid; grid-template-columns: 1fr 1fr; box-shadow: 0 18px 44px -20px rgba(0,0,0,.38); }
+.bk .row-bleed { display: block; }
+.bk .row:has(.ghost) { box-shadow: none; }
+.bk .row:has(.ghost) .pg:not(.ghost) { box-shadow: 0 18px 44px -20px rgba(0,0,0,.38); }
+.bk .sp-bleed { position: relative; aspect-ratio: 3 / 2; overflow: hidden; background: #ddd; }
+.bk .sp-bleed img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+.bk .pg { position: relative; aspect-ratio: 3 / 4; container-type: inline-size; overflow: hidden; background: #fff; color: #141414; font-family: var(--sans); word-break: keep-all; overflow-wrap: anywhere; }
+.bk .pg.ghost { background: transparent; box-shadow: none; }
+.bk .row .pg:first-child:not(.ghost)::after { content: ""; position: absolute; inset: 0 0 0 auto; width: 6cqw; background: linear-gradient(to left, rgba(0,0,0,.07), transparent); pointer-events: none; z-index: 2; }
+.bk .row .pg:nth-child(2):not(.ghost)::after { content: ""; position: absolute; inset: 0 auto 0 0; width: 4cqw; background: linear-gradient(to right, rgba(0,0,0,.06), transparent); pointer-events: none; z-index: 2; }
+.bk .pg > * { position: absolute; margin: 0; }
+.bk .pg img { display: block; object-fit: cover; background: #eee; }
+.bk .pg.dark { background: #111110; color: #f1f0ec; }
+.bk .lab { left: 8cqw; top: 8cqw; font-size: 1.8cqw; opacity: .7; }
+.bk .tt { left: 8cqw; right: 8cqw; bottom: 10cqw; }
+.bk .tt > * { position: static; }
+.bk .tt h1 { font-family: var(--serif); font-weight: 300; line-height: 1.1; letter-spacing: -0.05em; margin: 0 0 4cqw; }
+.bk .tt .date { font-size: 2.2cqw; font-variant-numeric: tabular-nums; margin-bottom: 3cqw; }
+.bk .tt .lede { font-size: 2.25cqw; line-height: 1.85; color: #bdbbb5; max-width: 72cqw; }
+.bk .tt .lede p, .bk .body p { margin: 0 0 .9em; }
+.bk .cap { font-size: 1.75cqw; line-height: 1.4; color: #7a7a78; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bk .body { font-family: var(--serif); font-size: 2.3cqw; line-height: 1.95; color: #1c1c1c; }
+.bk .folio { left: 0; right: 0; top: 126.5cqw; text-align: center; font-size: 1.55cqw; color: #9a9a97; font-variant-numeric: tabular-nums; }
+.bk .t-day .num { left: 8cqw; top: 9cqw; font-family: var(--serif); font-size: 13cqw; font-weight: 300; line-height: 1; letter-spacing: -0.04em; }
+.bk .t-day .dd { left: 8cqw; top: 27cqw; font-size: 2.4cqw; font-weight: 700; }
+.bk .t-day .dp { left: 8cqw; top: 31.5cqw; font-size: 2cqw; color: #7a7a78; }
+.bk .t-end .colo { left: 0; right: 0; top: 52cqw; text-align: center; }
+.bk .t-end .colo > * { position: static; }
+.bk .t-end .lab2 { font-size: 1.7cqw; color: #9a9a97; margin-bottom: 3cqw; }
+.bk .t-end .et { font-family: var(--serif); font-size: 5cqw; font-weight: 300; letter-spacing: -0.04em; margin-bottom: 2cqw; }
+.bk .t-end .ed { font-size: 1.9cqw; color: #7a7a78; }
+.bk .hint { border: 1px dashed #c9c5bd; border-radius: 1.2cqw; background: transparent; color: #8a867e; font: inherit; font-size: 2.1cqw; padding: 1.6cqw 2.4cqw; cursor: pointer; }
+.bk .hint.dark { border-color: #55534e; color: #a9a69f; }
+.bk [role="button"] { cursor: pointer; }
+.bk img[role="button"]:focus-visible, .bk [role="button"]:focus-visible { outline: 3px solid #2f6fdd; outline-offset: -3px; }
+
+@media (max-width: 760px) {
+  .bk { width: calc(100vw - 20px); gap: 12px; }
+  .bk .row { grid-template-columns: 1fr; gap: 12px; box-shadow: none; }
+  .bk .row .pg, .bk .sp-bleed { box-shadow: 0 8px 22px -12px rgba(0,0,0,.35); }
+  .bk .row .pg::after { display: none; }
+  .bk .pg.ghost { display: none; }
+}
+
+/* 인쇄: 한 장 = 한 페이지 (150×200mm) */
+@media print {
+  @page { size: 150mm 200mm; margin: 0; }
+  html, body { background: #fff !important; }
+  .bk-print { display: block; }
+  .bk-print .pg { width: 150mm; height: 200mm; aspect-ratio: auto; break-after: page; box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .bk-print .pg::after { display: none !important; }
+  .bk-print .pg:last-child { break-after: auto; }
+}

@@ -117,28 +117,47 @@ async function importFiles(files) {
 // ---------- 사진 한 장 ----------
 async function openPhoto(id) {
   const p = S.photos.find(x => x.id === id); if (!p) return;
+  const t = S.trips.find(x => x.id === p.tripId);
+  const plan = Pages.plan(t, App.tripPhotos(t.id));
+  const similar = [...plan.hiddenBy].filter(([, rep]) => rep === p.id).map(([hid]) => S.photos.find(x => x.id === hid)).filter(Boolean);
   const when = p.taken ? `${fmtFull(p.taken.slice(0, 10))} ${fmtTime(p)}` : p.assignedDate ? `${fmtFull(p.assignedDate)} (직접 넣은 날짜)` : null;
   const where = p.place && p.place.name ? `${placeText(p)}${p.place.country ? ', ' + p.place.country : ''}` : (p.lat != null ? `${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}` : null);
+  const size = p.layout || 'auto';
   const sh = openSheet(`
     <img class="sheet-photo" alt="" src="${await urlFor(p.id + ':disp')}">
     <dl class="facts">
       <dt>찍은 때</dt><dd>${when ? esc(when) : '<span class="unknown">사진에 날짜 정보가 없어요</span>'}</dd>
       <dt>장소</dt><dd>${where ? esc(where) : '<span class="unknown">사진에 위치 정보가 없어요</span>'}</dd>
     </dl>
-    ${!p.taken ? `<label class="saved" for="adate">날짜를 알면 넣어주세요</label><input type="date" id="adate" value="${p.assignedDate || ''}" style="font-size:16px;padding:10px;border:1px solid var(--line);border-radius:10px;margin-bottom:12px">` : ''}
-    <label for="note" class="sr">이 사진에 한마디</label>
-    <textarea id="note" placeholder="이 사진에 한마디 (안 써도 돼요)">${esc(p.note)}</textarea>
+    ${!p.taken ? `<label class="saved" for="adate">날짜를 알면 넣어주세요</label><input type="date" id="adate" value="${p.assignedDate || ''}" style="margin-bottom:12px">` : ''}
+    <label for="note" class="sr">이 사진 이야기</label>
+    <textarea id="note" placeholder="이 사진 이야기 (쓰면 사진 옆에 글이 함께 실려요)">${esc(p.note)}</textarea>
     <div class="saved" id="note-st"></div>
+    <div class="seg-label">페이지에서 크기</div>
+    <div class="seg" id="sizeSeg">${[['auto', '알아서'], ['big', '크게'], ['small', '작게']].map(([k, l]) => `<button data-size="${k}" aria-pressed="${size === k}">${l}</button>`).join('')}</div>
+    ${similar.length ? `<div class="seg-label">비슷한 사진 ${similar.length}장 (숨겨져 있어요, 누르면 책에 넣어요)</div>
+      <div class="thumbs">${(await Promise.all(similar.map(async q => `<button data-show="${q.id}"><img alt="" src="${await urlFor(q.id + ':thumb')}"></button>`))).join('')}</div>` : ''}
     <div class="sheet-actions">
-      <button data-act="set-cover" data-id="${p.id}">표지로 쓰기</button>
+      <button data-act="set-cover" data-id="${p.id}">표지로</button>
       <button data-act="move-photo" data-id="${p.id}">다른 여행으로</button>
-      <button class="danger" data-act="del-photo" data-id="${p.id}">사진 빼기</button>
+      <button class="danger" data-act="hide-photo" data-id="${p.id}">책에서 빼기</button>
       <button class="done" data-close>완료</button>
     </div>`, { onClose: () => { flush(); rerender(); } });
   const ta = $('#note', sh);
   const flush = autosave(ta, async v => { if (p._gone) return; p.note = v.trim(); await DB.putPhoto(p); }, $('#note-st', sh));
   const ad = $('#adate', sh);
   if (ad) ad.addEventListener('change', async () => { p.assignedDate = ad.value || null; await DB.putPhoto(p); $('#note-st', sh).textContent = '날짜를 넣었어요'; });
+  $('#sizeSeg', sh).addEventListener('click', async e => {
+    const b = e.target.closest('[data-size]'); if (!b) return;
+    p.layout = b.dataset.size === 'auto' ? undefined : b.dataset.size; await DB.putPhoto(p);
+    sh.querySelectorAll('[data-size]').forEach(x => x.setAttribute('aria-pressed', x === b));
+    $('#note-st', sh).textContent = '페이지 배치를 바꿨어요';
+  });
+  sh.addEventListener('click', async e => {
+    const b = e.target.closest('[data-show]'); if (!b) return;
+    const q = S.photos.find(x => x.id === b.dataset.show); q.show = true; delete q.hidden; await DB.putPhoto(q);
+    b.remove(); $('#note-st', sh).textContent = '책에 넣었어요';
+  });
 }
 
 // ---------- 글 쓰기 창 (제목·한 줄·하루 이야기) ----------
@@ -222,7 +241,14 @@ document.addEventListener('click', async e => {
       p.tripId = to; await DB.putPhoto(p); closeSheet(); toast('옮겼어요');
     });
   }
-  else if (act === 'print-trip') { const t = curTrip(); location.hash = '#/print/' + t.id; }
+  else if (act === 'print-trip') { const t = curTrip(); closeSheet(true); location.hash = '#/print/' + t.id; }
+  else if (act === 'export') { if (window.Export) Export.open(curTrip()); }
+  else if (act === 'publish') { if (window.Publish) Publish.open(curTrip()); }
+  else if (act === 'ai') { if (window.AI) AI.open(curTrip()); }
+  else if (act === 'hide-photo') {
+    const p = S.photos.find(x => x.id === a.dataset.id); p.hidden = true; delete p.show; await DB.putPhoto(p); closeSheet();
+    toast('책에서 뺐어요. 사진은 그대로 있어요.', 4000, { label: '되돌리기', run: async () => { delete p.hidden; await DB.putPhoto(p); rerender(); } });
+  }
   else if (act === 'do-print') window.print();
   else if (act === 'trip-menu') {
     const t = curTrip();
