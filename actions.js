@@ -122,9 +122,10 @@ async function openPhoto(id) {
   const similar = [...plan.hiddenBy].filter(([, rep]) => rep === p.id).map(([hid]) => S.photos.find(x => x.id === hid)).filter(Boolean);
   const when = p.taken ? `${fmtFull(p.taken.slice(0, 10))} ${fmtTime(p)}` : p.assignedDate ? `${fmtFull(p.assignedDate)} (직접 넣은 날짜)` : null;
   const where = p.place && p.place.name ? `${placeText(p)}${p.place.country ? ', ' + p.place.country : ''}` : (p.lat != null ? `${p.lat.toFixed(3)}, ${p.lon.toFixed(3)}` : null);
-  const size = p.layout || 'auto';
+  const size = (p.hero || p.layout === 'big') ? 'big' : (p.layout || 'auto');
   const sh = openSheet(`
-    <img class="sheet-photo" alt="" src="${await urlFor(p.id + ':disp')}">
+    <div class="focus-wrap"><img class="sheet-photo" id="fp-img" alt="" src="${await urlFor(p.id + ':disp')}"><span class="focus-dot" id="fp-dot" hidden></span></div>
+    <div class="saved" id="fp-help" hidden>화면을 꽉 채우면 가장자리가 잘려요. 사진에서 꼭 보여야 할 곳을 눌러 주세요.</div>
     <dl class="facts">
       <dt>찍은 때</dt><dd>${when ? esc(when) : '<span class="unknown">사진에 날짜 정보가 없어요</span>'}</dd>
       <dt>장소</dt><dd>${where ? esc(where) : '<span class="unknown">사진에 위치 정보가 없어요</span>'}</dd>
@@ -133,8 +134,8 @@ async function openPhoto(id) {
     <label for="note" class="sr">이 사진 이야기</label>
     <textarea id="note" placeholder="이 사진 이야기 (쓰면 사진 옆에 글이 함께 실려요)">${esc(p.note)}</textarea>
     <div class="saved" id="note-st"></div>
-    <div class="seg-label">페이지에서 크기</div>
-    <div class="seg" id="sizeSeg">${[['auto', '알아서'], ['big', '크게'], ['small', '작게']].map(([k, l]) => `<button data-size="${k}" aria-pressed="${size === k}">${l}</button>`).join('')}</div>
+    <div class="seg-label">이 사진을</div>
+    <div class="seg" id="sizeSeg">${[['auto', '보통'], ['big', '화면 가득'], ['small', '작게']].map(([k, l]) => `<button data-size="${k}" aria-pressed="${size === k}">${l}</button>`).join('')}</div>
     ${similar.length ? `<div class="seg-label">비슷한 사진 ${similar.length}장 (숨겨져 있어요, 누르면 책에 넣어요)</div>
       <div class="thumbs">${(await Promise.all(similar.map(async q => `<button data-show="${q.id}"><img alt="" src="${await urlFor(q.id + ':thumb')}"></button>`))).join('')}</div>` : ''}
     <div class="sheet-actions">
@@ -145,20 +146,83 @@ async function openPhoto(id) {
     </div>`, { onClose: () => { flush(); rerender(); } });
   const ta = $('#note', sh);
   const flush = autosave(ta, async v => { if (p._gone) return; p.note = v.trim(); await DB.putPhoto(p); }, $('#note-st', sh));
+  // 화면 가득/표지일 때: 꼭 보여야 할 곳 누르기
+  const fImg = $('#fp-img', sh), fDot = $('#fp-dot', sh), fHelp = $('#fp-help', sh);
+  const isBig = () => !!(p.hero || p.layout === 'big' || (t.coverId ? t.coverId === p.id : plan.cover && plan.cover.id === p.id));
+  const placeDot = () => {
+    const on = isBig(); fHelp.hidden = !on; fDot.hidden = !on; fImg.classList.toggle('focusable', on);
+    if (!on) return;
+    const f = p.focus || { x: 50, y: 50 };
+    const r = fImg.getBoundingClientRect(), wr = fImg.parentElement.getBoundingClientRect();
+    const iw = fImg.naturalWidth, ih = fImg.naturalHeight; const sc = Math.min(r.width / iw, r.height / ih);
+    const dw = iw * sc, dh = ih * sc; const ox = r.left - wr.left + (r.width - dw) / 2, oy = r.top - wr.top + (r.height - dh) / 2;
+    fDot.style.left = (ox + dw * f.x / 100) + 'px'; fDot.style.top = (oy + dh * f.y / 100) + 'px';
+  };
+  if (fImg.complete) placeDot(); else fImg.onload = placeDot;
+  fImg.addEventListener('click', async e => {
+    if (!isBig()) return;
+    const r = fImg.getBoundingClientRect(); const iw = fImg.naturalWidth, ih = fImg.naturalHeight; const sc = Math.min(r.width / iw, r.height / ih);
+    const dw = iw * sc, dh = ih * sc; const x = (e.clientX - r.left - (r.width - dw) / 2) / dw * 100, y = (e.clientY - r.top - (r.height - dh) / 2) / dh * 100;
+    if (x < 0 || x > 100 || y < 0 || y > 100) return;
+    p.focus = { x: Math.round(x), y: Math.round(y) }; await DB.putPhoto(p); placeDot(); $('#note-st', sh).textContent = '이 부분이 꼭 보이게 할게요';
+  });
   if (window.Voice) Voice.attachMic(ta, $('#note-st', sh));
   const ad = $('#adate', sh);
   if (ad) ad.addEventListener('change', async () => { p.assignedDate = ad.value || null; await DB.putPhoto(p); $('#note-st', sh).textContent = '날짜를 넣었어요'; });
   $('#sizeSeg', sh).addEventListener('click', async e => {
     const b = e.target.closest('[data-size]'); if (!b) return;
-    p.layout = b.dataset.size === 'auto' ? undefined : b.dataset.size; await DB.putPhoto(p);
+    const v = b.dataset.size; p.hero = v === 'big'; if (!p.hero) delete p.hero; p.layout = v === 'small' ? 'small' : undefined; await DB.putPhoto(p);
     sh.querySelectorAll('[data-size]').forEach(x => x.setAttribute('aria-pressed', x === b));
-    $('#note-st', sh).textContent = '페이지 배치를 바꿨어요';
+    $('#note-st', sh).textContent = b.dataset.size === 'big' ? '화면 가득 보여줄게요' : '바꿨어요'; placeDot();
   });
   sh.addEventListener('click', async e => {
     const b = e.target.closest('[data-show]'); if (!b) return;
     const q = S.photos.find(x => x.id === b.dataset.show); q.show = true; delete q.hidden; await DB.putPhoto(q);
     b.remove(); $('#note-st', sh).textContent = '책에 넣었어요';
   });
+}
+
+
+// ---------- 사진 고르기: 하이라이트 / 표지 / 빼기 (누르면 바로 반영) ----------
+async function openPicker(t) {
+  const ps = App.tripPhotos(t.id);
+  const plan = Pages.plan(t, ps);
+  let mode = 'hero';
+  const sh = openSheet(`<h3>사진 고르기</h3>
+    <div class="seg" id="pk-mode"><button data-m="hero" aria-pressed="true">화면 가득</button><button data-m="cover" aria-pressed="false">표지</button><button data-m="hide" aria-pressed="false">빼기</button></div>
+    <p class="saved" id="pk-help">크게 보여주고 싶은 순간을 누르세요. 누르면 바로 바뀌어요.</p>
+    <div class="pk-grid" id="pk"></div>
+    <div class="sheet-actions"><button class="done" data-close>완료</button></div>`, { onClose: () => rerender() });
+  const help = { hero: '크게 보여주고 싶은 순간을 누르세요. 누르면 바로 바뀌어요.', cover: '표지로 쓸 사진을 하나 누르세요.', hide: '책에서 뺄 사진을 누르세요. 다시 누르면 돌아와요.' };
+  const draw = async () => {
+    const cur = Pages.plan(t, App.tripPhotos(t.id));
+    const coverId = cur.cover && cur.cover.id;
+    $('#pk', sh).innerHTML = (await Promise.all(ps.map(async p => {
+      const tags = [];
+      if (p.id === coverId) tags.push('<span class="tg tg-cover">표지</span>');
+      if (p.hero || p.layout === 'big') tags.push('<span class="tg tg-hero">화면 가득</span>');
+      if (p.hidden) tags.push('<span class="tg tg-hide">뺌</span>');
+      else if (cur.hiddenBy.has(p.id)) tags.push('<span class="tg tg-sim">비슷해서 숨김</span>');
+      return `<button class="pk-item${p.hidden ? ' off' : ''}" data-id="${p.id}"><img alt="" src="${await urlFor(p.id + ':thumb')}"><span class="tags">${tags.join('')}</span><span class="tm">${fmtTime(p)}</span></button>`;
+    }))).join('');
+  };
+  await draw();
+  $('#pk-mode', sh).addEventListener('click', e => { const b = e.target.closest('[data-m]'); if (!b) return; mode = b.dataset.m; sh.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x === b)); $('#pk-help', sh).textContent = help[mode]; });
+  $('#pk', sh).addEventListener('click', async e => {
+    const b = e.target.closest('.pk-item'); if (!b) return;
+    const p = S.photos.find(x => x.id === b.dataset.id);
+    if (mode === 'hero') { if (p.hero || p.layout === 'big') { delete p.hero; if (p.layout === 'big') delete p.layout; } else { p.hero = true; delete p.hidden; if (p.layout === 'small') delete p.layout; p.show = true; } await DB.putPhoto(p); }
+    else if (mode === 'cover') { t.coverId = p.id; delete p.hidden; await DB.putTrip(t); await DB.putPhoto(p); }
+    else if (mode === 'hide') { if (p.hidden) delete p.hidden; else { p.hidden = true; delete p.show; } await DB.putPhoto(p); }
+    await draw(); rerender();
+  });
+}
+function openShareMenu(t) {
+  openSheet(`<h3>보내기 · 저장</h3><div class="pick-list">
+    <button data-act="publish"><b>링크로 보여주기 (비밀번호)</b><small>비밀번호를 아는 사람만 이 화면 그대로 볼 수 있어요</small></button>
+    <button data-act="export"><b>파일로 내보내기</b><small>책 PDF · AI·노션용 파일 · 블로그용 글</small></button>
+    <button data-go="#/book/${t.id}" data-close><b>책 모양으로 보기</b><small>인쇄했을 때 페이지가 어떻게 나오는지</small></button>
+  </div>`);
 }
 
 // ---------- 글 쓰기 창 (제목·한 줄·하루 이야기) ----------
@@ -244,10 +308,12 @@ document.addEventListener('click', async e => {
     });
   }
   else if (act === 'print-trip') { const t = curTrip(); closeSheet(true); location.hash = '#/print/' + t.id; }
-  else if (act === 'export') { if (window.Export) Export.open(curTrip()); }
-  else if (act === 'publish') { if (window.Publish) Publish.open(curTrip()); }
+  else if (act === 'export') { const t = curTrip(); closeSheet(true); if (window.Export) Export.open(t); }
+  else if (act === 'publish') { const t = curTrip(); closeSheet(true); if (window.Publish) Publish.open(t); }
   else if (act === 'ai') { if (window.AI) AI.open(curTrip()); }
   else if (act === 'voice') { if (window.Voice) Voice.quickNote(curTrip()); }
+  else if (act === 'pick') openPicker(curTrip());
+  else if (act === 'share-menu') openShareMenu(curTrip());
   else if (act === 'hide-photo') {
     const p = S.photos.find(x => x.id === a.dataset.id); p.hidden = true; delete p.show; await DB.putPhoto(p); closeSheet();
     toast('책에서 뺐어요. 사진은 그대로 있어요.', 4000, { label: '되돌리기', run: async () => { delete p.hidden; await DB.putPhoto(p); rerender(); } });

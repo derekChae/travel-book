@@ -1,8 +1,8 @@
 /* 앱 화면 (책장, 버튼, 아래 창). 책 페이지 모양은 book.css */
 :root {
   --ink: #141414; --ink2: #3a3835; --mute: #77736c; --line: #dedad3; --paper: #f6f5f2; --desk: #deddd9;
-  --serif: "Noto Serif KR", "Nanum Myeongjo", "AppleMyungjo", serif;
-  --sans: "Pretendard Variable", Pretendard, -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  --serif: "MaruBuri", "Noto Serif KR", "AppleMyungjo", serif; --bold: "MaruBuriBold", "MaruBuri", serif;
+  --sans: "SUIT Variable", -apple-system, "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
   --pad: 20px; --maxw: 1100px; --safe-b: env(safe-area-inset-bottom, 0px);
 }
 * { box-sizing: border-box; }
@@ -135,3 +135,57 @@ textarea { min-height: 120px; }
 @keyframes ringPulse { 0% { box-shadow: 0 0 0 0 rgba(179,38,30,.4); } 100% { box-shadow: 0 0 0 18px rgba(179,38,30,0); } }
 @media (prefers-reduced-motion: reduce) { .mic-btn .dot, .big-mic .ring { animation: none !important; } }
 .dock-3 > button { max-width: 300px; }
+
+/* ===== 사진 위주 화면 ===== */
+body.is-story { background: #fbfaf7; }
+body.is-story .top { position: fixed; left: 0; right: 0; background: rgba(251,250,247,.96); border-bottom: 0; box-shadow: 0 1px 0 rgba(0,0,0,.06); transition: background .2s, color .2s; }
+body.is-story .top.on-cover { background: linear-gradient(to bottom, rgba(0,0,0,.4), rgba(0,0,0,0)); color: #fff; box-shadow: none; }
+body.is-story .top.on-cover .icon-btn { color: #fff; }
+body.is-story .top.on-cover .top-title { opacity: 0; }
+body.is-story .top-title { font-family: var(--bold); transition: opacity .2s; }
+.brand, .home-head h1, .welcome h1, .issue h2 { font-family: var(--bold); font-weight: 700; }
+
+.fdock { position: fixed; left: 50%; bottom: calc(14px + var(--safe-b)); z-index: 30; transform: translateX(-50%); display: flex; gap: 4px; padding: 6px; border-radius: 999px; background: rgba(20,20,20,.9); box-shadow: 0 10px 30px -8px rgba(0,0,0,.5); }
+.fdock button { display: inline-flex; align-items: center; gap: 7px; height: 46px; padding: 0 16px; border: 0; border-radius: 999px; background: transparent; color: #f3f1ec; font-size: 14.5px; font-weight: 600; white-space: nowrap; }
+.fdock .fd-main { background: #fbfaf7; color: #141414; }
+.fdock button:active { transform: scale(.97); }
+.fi { position: relative; display: inline-block; width: 14px; height: 14px; }
+.fi-plus::before, .fi-plus::after { content: ""; position: absolute; left: 50%; top: 50%; width: 14px; height: 2px; background: currentColor; transform: translate(-50%, -50%); border-radius: 2px; }
+.fi-plus::after { transform: translate(-50%, -50%) rotate(90deg); }
+.fi-mic { width: 10px; height: 10px; border-radius: 50%; background: #d8352a; }
+.fi-ai { width: 14px; height: 14px; border: 2px solid currentColor; border-radius: 4px; }
+.fi-ai::after { content: ""; position: absolute; left: 2px; right: 2px; top: 4px; height: 2px; background: currentColor; box-shadow: 0 4px 0 currentColor; }
+@media (max-width: 380px) { .fdock button { padding: 0 12px; font-size: 13.5px; } }
+
+/* 책장: 표지를 크게 */
+.shelf { grid-template-columns: 1fr; gap: 14px; padding: 12px 12px 20px; }
+@media (min-width: 700px) { .shelf { grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 16px 20px; } }
+@media (min-width: 1100px) { .shelf { grid-template-columns: repeat(3, 1fr); } }
+.issue-cover { aspect-ratio: 4 / 5; border-radius: 4px; box-shadow: none; }
+.issue-cover::after { content: ""; position: absolute; inset: 45% 0 0 0; background: linear-gradient(to top, rgba(0,0,0,.6), transparent); }
+.issue-tx { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 18px 18px 20px; color: #fff; text-align: left; }
+.issue-tx .issue-no { color: rgba(255,255,255,.85); margin: 0 0 6px; }
+.issue-tx h2 { font-size: 30px; line-height: 1.12; letter-spacing: -0.035em; margin: 0 0 6px; color: #fff; }
+.issue-tx .meta { color: rgba(255,255,255,.88); font-size: 13px; }
+.home-head h1 { font-size: 30px; }
+
+/* 사진 고르기 */
+.pk-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-top: 10px; }
+@media (min-width: 700px) { .pk-grid { grid-template-columns: repeat(4, 1fr); } }
+.pk-item { position: relative; padding: 0; border: 0; background: #ddd; aspect-ratio: 1; overflow: hidden; border-radius: 6px; }
+.pk-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pk-item.off img { opacity: .3; }
+.pk-item .tags { position: absolute; left: 5px; top: 5px; right: 5px; display: flex; flex-wrap: wrap; gap: 3px; }
+.pk-item .tg { font-size: 10.5px; font-weight: 700; padding: 2px 6px; border-radius: 999px; }
+.tg-cover { background: #fff; color: #141414; } .tg-hero { background: #ffd84d; color: #141414; } .tg-hide { background: #141414; color: #fff; } .tg-sim { background: rgba(0,0,0,.55); color: #fff; font-weight: 500; }
+.pk-item .tm { position: absolute; right: 6px; bottom: 4px; color: #fff; font-size: 11px; text-shadow: 0 1px 3px rgba(0,0,0,.7); }
+
+.focus-wrap { position: relative; }
+.sheet-photo.focusable { cursor: crosshair; }
+.focus-dot { position: absolute; width: 26px; height: 26px; margin: -13px 0 0 -13px; border-radius: 50%; border: 3px solid #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.45), inset 0 0 0 2px rgba(0,0,0,.25); pointer-events: none; }
+
+body.is-story .top, .fdock { transition: transform .25s ease, background .2s, color .2s; }
+body.chrome-hidden .top { transform: translateY(-100%); }
+body.chrome-hidden .fdock { transform: translate(-50%, 140%); }
+body.is-story .st-cover-tx { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+@media (prefers-reduced-motion: reduce) { body.is-story .top, .fdock { transition: none; } }

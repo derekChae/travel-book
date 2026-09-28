@@ -106,10 +106,9 @@ function renderHome() {
       <div class="shelf">${list.map(({ t, i }, k) => {
         const plan = Pages.plan(t, i.ps); const c = plan.cover;
         return `<button class="issue" data-go="#/trip/${t.id}">
-          <div class="issue-cover">${c ? imgTag(c, 'thumb') : '<div class="empty">사진 없음</div>'}</div>
-          <div class="issue-no">No.${String(k + 1).padStart(2, '0')}${t.published ? ' · 발행됨' : ''}</div>
-          <h2>${esc(i.title)}</h2>
-          <div class="meta">${fmtRange(i.start, i.end)} · ${plan.shown.length}장</div>
+          <div class="issue-cover">${c ? imgTag(c, 'disp') : '<div class="empty">사진 없음</div>'}
+            <div class="issue-tx"><div class="issue-no">No.${String(k + 1).padStart(2, '0')}${t.published ? ' · 발행됨' : ''}</div><h2>${esc(i.title)}</h2><div class="meta">${fmtRange(i.start, i.end)} · ${plan.shown.length}장</div></div>
+          </div>
         </button>`; }).join('')}</div>`;
   }
   html += `<div class="page-bottom-space"></div>${dockHtml(false)}`;
@@ -125,13 +124,53 @@ function renderTrip(id) {
   const { info, plan, ctx } = bookCtx(t, { edit: true });
   document.title = info.title + ' · 나의 여행책';
   const hidden = plan.hiddenBy.size;
-  view().innerHTML = `<header class="top" id="top"><button class="back" data-go="#/">‹ 책장</button>
-      <div class="top-title">${esc(info.title)}</div>
-      <button class="icon-btn" data-act="export">내보내기</button><button class="icon-btn" data-act="publish">발행</button></header>
-    <div class="book-note">사진이나 글을 누르면 고칠 수 있어요.${hidden ? ` 비슷한 사진 ${hidden}장은 대표 한 장만 보여줘요.` : ''}</div>
+  view().innerHTML = `<header class="top" id="top"><button class="back" data-go="#/trip/${t.id}">‹ 이야기로</button>
+      <div class="top-title">책 모양 (인쇄용)</div>
+      <button class="icon-btn" data-act="print-trip">PDF</button></header>
+    <div class="book-note">인쇄했을 때의 페이지 모양이에요.${hidden ? ` 비슷한 사진 ${hidden}장은 대표 한 장만 넣었어요.` : ''}</div>
     <article class="bk" data-trip="${t.id}">${Render.screenHTML(plan, ctx)}</article>
     <div class="page-bottom-space"></div>${dockHtml(true)}`;
   hydrate(view());
+}
+
+
+// ---------- 이야기 화면 (사진 위주) ----------
+function storyCtx(t, { edit = false, img } = {}) {
+  const { info, plan, ctx } = bookCtx(t, { edit });
+  return { info, plan, sctx: { ...ctx, info: ctx.info, trip: t, edit, shown: plan.shown, cover: plan.cover,
+    img: img || ((p, role) => `data-key="${p.id}:${role === 'hero' ? 'print' : 'disp'}" src="${BLANK}"`) } };
+}
+function renderStory(id) {
+  const t = S.trips.find(x => x.id === id);
+  if (!t) { location.hash = '#/'; return; }
+  document.body.className = 'is-story';
+  const { info, sctx } = storyCtx(t, { edit: true });
+  document.title = info.title + ' · 나의 여행책';
+  view().innerHTML = `<header class="top on-cover" id="top"><button class="back" data-go="#/">‹ 책장</button>
+      <div class="top-title">${esc(info.title)}</div>
+      <button class="icon-btn" data-act="pick">사진 고르기</button><button class="icon-btn" data-act="share-menu">보내기</button></header>
+    <div data-trip="${t.id}">${Story.storyHTML(sctx)}</div>
+    ${storyDock()}`;
+  hydrate(view());
+  onScrollTop();
+}
+function storyDock() {
+  return `<nav class="fdock" aria-label="기록 도구"><button data-act="add"><span class="fi fi-plus" aria-hidden="true"></span>사진</button><button class="fd-main" data-act="voice"><span class="fi fi-mic" aria-hidden="true"></span>말로 남기기</button><button data-act="ai">AI 글쓰기</button></nav>`;
+}
+let lastY = 0;
+function onScrollTop() {
+  const t = $('#top'); if (!t) return;
+  const y = window.scrollY;
+  t.classList.toggle('scrolled', y > 4);
+  if (document.body.classList.contains('is-story')) {
+    const onCover = y < window.innerHeight - 80;
+    t.classList.toggle('on-cover', onCover);
+    // 사진 볼 때는 위아래 막대를 숨기고, 위로 올리거나 끝에 닿으면 다시 보여줌
+    const atEnd = y + window.innerHeight >= document.documentElement.scrollHeight - 40;
+    if (onCover || atEnd || y < lastY - 6) document.body.classList.remove('chrome-hidden');
+    else if (y > lastY + 6) document.body.classList.add('chrome-hidden');
+  }
+  lastY = y;
 }
 
 // ---------- 책 PDF ----------
@@ -153,18 +192,21 @@ function route() {
   const h = location.hash || '#/';
   window.scrollTo(0, 0);
   let m;
-  if ((m = h.match(/^#\/trip\/(.+)$/))) renderTrip(decodeURIComponent(m[1]));
+  if ((m = h.match(/^#\/trip\/(.+)$/))) renderStory(decodeURIComponent(m[1]));
+  else if ((m = h.match(/^#\/book\/(.+)$/))) renderTrip(decodeURIComponent(m[1]));
   else if ((m = h.match(/^#\/print\/(.+)$/))) renderPrint(decodeURIComponent(m[1]));
   else renderHome();
 }
 function rerender() {
   const y = window.scrollY; const h = location.hash || '#/';
-  const m = h.match(/^#\/trip\/(.+)$/);
-  if (m) renderTrip(decodeURIComponent(m[1])); else if (!h.startsWith('#/print')) renderHome();
+  let m;
+  if ((m = h.match(/^#\/trip\/(.+)$/))) renderStory(decodeURIComponent(m[1]));
+  else if ((m = h.match(/^#\/book\/(.+)$/))) renderTrip(decodeURIComponent(m[1]));
+  else if (!h.startsWith('#/print')) renderHome();
   window.scrollTo(0, y);
 }
 window.addEventListener('hashchange', route);
-window.addEventListener('scroll', () => { const t = $('#top'); if (t) t.classList.toggle('scrolled', window.scrollY > 4); }, { passive: true });
+window.addEventListener('scroll', onScrollTop, { passive: true });
 
 function toast(msg, ms = 2600, action) {
   const el = document.createElement('div'); el.className = 'toast'; el.setAttribute('role', 'status');
@@ -173,4 +215,4 @@ function toast(msg, ms = 2600, action) {
   document.body.appendChild(el); setTimeout(() => el.remove(), ms);
 }
 
-window.App = { S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };
+window.App = { storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };

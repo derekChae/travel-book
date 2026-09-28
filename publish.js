@@ -16,34 +16,37 @@ async function encrypt(text, password) {
   return b64(all);
 }
 
-async function dataUrl(p) {
-  const url = await App.urlFor(p.id + ':disp');
+async function dataUrl(p, max) {
+  const url = await App.urlFor(p.id + (max > 1600 ? ':print' : ':disp'));
   const img = new Image(); img.src = url; await img.decode();
-  const s = Math.min(1, 1400 / Math.max(img.naturalWidth, img.naturalHeight));
+  const s = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
   const c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * s); c.height = Math.round(img.naturalHeight * s);
   c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-  return c.toDataURL('image/jpeg', 0.82);
+  return c.toDataURL('image/jpeg', 0.84);
 }
 
+// 발행본 = 사진 위주 이야기 화면 (읽기 전용)
 async function bookPage(t, onProgress) {
-  const { info, plan } = App.bookCtx(t);
+  const { info, sctx } = App.storyCtx(t);
+  const big = new Set([sctx.cover && sctx.cover.id, ...sctx.shown.filter(p => Story.isHero(p)).map(p => p.id)].filter(Boolean));
   const urls = new Map(); let k = 0;
-  for (const p of plan.shown) { urls.set(p.id, await dataUrl(p)); onProgress && onProgress(++k, plan.shown.length); }
-  const { ctx } = App.bookCtx(t, { edit: false, img: p => `src="${urls.get(p.id)}"` });
-  const css = await (await fetch('book.css')).text();
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+  for (const p of sctx.shown) { urls.set(p.id, await dataUrl(p, big.has(p.id) ? 2400 : 1400)); onProgress && onProgress(++k, sctx.shown.length); }
+  const { sctx: ro } = App.storyCtx(t, { edit: false, img: p => `src="${urls.get(p.id)}"` });
+  const css = await (await fetch('story.css')).text();
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex">
 <title>${esc(info.title)}</title>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@300;400;600&display=swap" rel="stylesheet">
-<style>body{margin:0;background:#deddd9;font-family:"Pretendard Variable",Pretendard,sans-serif}.head{max-width:1320px;margin:0 auto;padding:18px 24px 14px;font-size:13px;color:#5f5c56;text-align:center}.foot{padding:40px 20px 60px;text-align:center;font-size:12px;color:#8a867e}${css}</style></head>
-<body><div class="head">나의 여행책</div><article class="bk">${Render.screenHTML(plan, ctx)}</article><div class="foot">${esc(info.title)} · ${Render.range(info.start, info.end)}</div></body></html>`;
+<link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css">
+<style>html,body{margin:0;background:#fbfaf7}${css}</style></head>
+<body>${Story.storyHTML(ro)}</body></html>`;
 }
 
 function lockedPage(cipher) {
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex, nofollow">
 <title>나의 여행책</title>
+<link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css">
 <style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#111110;color:#f1f0ec;font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif}
-form{width:min(340px,86vw)}h1{font-family:"Noto Serif KR","AppleMyungjo",serif;font-weight:300;font-size:34px;letter-spacing:-.04em;margin:0 0 6px}p{color:#a9a69f;font-size:14px;margin:0 0 22px}
+form{width:min(340px,86vw)}h1{font-family:MaruBuriBold,"AppleMyungjo",serif;font-weight:700;font-size:34px;letter-spacing:-.04em;margin:0 0 6px}p{color:#a9a69f;font-size:14px;margin:0 0 22px}
 input{width:100%;box-sizing:border-box;height:50px;border-radius:12px;border:1px solid #444;background:#1c1c1a;color:#fff;font-size:17px;padding:0 14px}button{margin-top:10px;width:100%;height:50px;border:0;border-radius:12px;background:#f1f0ec;color:#111;font-size:16px;font-weight:600}
 #e{color:#ff9d8f;min-height:20px;margin-top:10px;font-size:14px}</style></head>
 <body><form id="f"><h1>나의 여행책</h1><p>비밀번호를 넣으면 열려요</p><input id="pw" type="password" autocomplete="current-password" aria-label="비밀번호" autofocus><button>열기</button><div id="e" role="alert"></div></form>

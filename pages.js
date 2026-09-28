@@ -107,7 +107,7 @@ function plan(trip, photos) {
       small = [];
     };
     for (const p of days.get(k)) {
-      const size = p.layout || 'auto';
+      const size = p.hero ? 'big' : (p.layout || 'auto');
       if (p.note) {
         flushSmall();
         const land = ar(p) > 1.15;

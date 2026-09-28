@@ -1,0 +1,67 @@
+/* 이야기 화면 — 사진 위주 (앱 + 발행본 공통). 글꼴: 마루부리 */
+.st { --st-serif: "MaruBuri", "Noto Serif KR", "AppleMyungjo", serif; --st-bold: "MaruBuriBold", "MaruBuri", serif; --st-semi: "MaruBuriSemiBold", "MaruBuri", serif;
+  background: #fbfaf7; color: #151515; font-family: var(--st-serif); word-break: keep-all; overflow-wrap: anywhere; }
+.st img { display: block; }
+.st [role="button"] { cursor: pointer; }
+.st [role="button"]:focus-visible { outline: 3px solid #2f6fdd; outline-offset: -3px; }
+
+/* 표지: 화면 가득 */
+.st-cover { position: relative; height: 100vh; height: 100svh; min-height: 520px; background: #111; color: #fff; overflow: hidden; }
+.st-cover.no-photo { background: #1b1b19; }
+.st-cover-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.st-cover::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 58%; background: linear-gradient(to top, rgba(0,0,0,.62), rgba(0,0,0,.28) 45%, transparent); pointer-events: none; }
+.st-cover-tx { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 0 24px calc(40px + env(safe-area-inset-bottom, 0px)); max-width: 1200px; margin: 0 auto; }
+.st-kicker { font-size: 13px; letter-spacing: .02em; opacity: .9; margin-bottom: 14px; }
+.st-cover h1 { font-family: var(--st-bold); font-weight: 700; font-size: clamp(44px, 12vw, 128px); line-height: 1.05; letter-spacing: -0.04em; margin: 0 0 16px; text-wrap: balance; }
+.st-meta { font-size: 15px; opacity: .92; }
+
+/* 글 */
+.st-text { max-width: 620px; margin: 0 auto; padding: 72px 24px; font-size: 18px; line-height: 1.95; }
+.st-text p { margin: 0 0 1.1em; }
+.st-text p:last-child { margin: 0; }
+.st-lede { font-size: 20px; line-height: 1.9; font-family: var(--st-semi); padding-top: 88px; padding-bottom: 88px; }
+.st-hint { display: block; width: 100%; margin: 0; border: 0; border-left: 2px solid #d9d4ca; background: transparent; color: #a19c93; font: inherit; font-size: 18px; line-height: 1.7; text-align: left; padding: 4px 0 4px 16px; cursor: pointer; }
+.st-hint:hover { color: #6f6b64; border-left-color: #151515; }
+.st > .st-text .st-hint { margin: 0 auto; }
+
+/* 날짜 제목 */
+.st-day { max-width: 620px; margin: 0 auto; padding: 96px 24px 40px; }
+.st-day-no { font-family: var(--st-bold); font-size: 14px; letter-spacing: .06em; color: #8a867e; margin-bottom: 10px; }
+.st-day h2 { font-family: var(--st-bold); font-weight: 700; font-size: clamp(32px, 7vw, 56px); line-height: 1.12; letter-spacing: -0.035em; margin: 0 0 8px; }
+.st-day-pl { font-size: 15px; color: #6f6b64; }
+.st-day .st-daynote { padding: 32px 0 0; max-width: none; }
+.st-day .st-hint { margin: 28px 0 0; }
+
+/* 사진 */
+.st-fig { position: relative; margin: 0 0 6px; }
+.st-fig img { width: 100%; height: auto; background: #e9e6e0; }
+.st-fig figcaption, .st-full-cap { font-family: "SUIT Variable", -apple-system, "Apple SD Gothic Neo", sans-serif; font-size: 12.5px; color: #8a867e; padding: 8px 24px 26px; font-variant-numeric: tabular-nums; }
+.st-full { position: relative; height: 100vh; height: 100svh; min-height: 480px; background: #111; margin: 0 0 6px; }
+.st-full img { width: 100%; height: 100%; object-fit: cover; }
+.st-full { margin-bottom: 0; }
+.st-full-cap { margin-bottom: 6px; }
+.st-badge { position: absolute; left: 14px; top: 64px; z-index: 3; font-family: "SUIT Variable", sans-serif; font-size: 12px; font-weight: 700; color: #151515; background: #ffd84d; border-radius: 999px; padding: 4px 10px; }
+.st-fig .st-badge { top: 14px; }
+.st-duo { display: grid; gap: 6px; }
+.st-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 0 6px; margin-bottom: 6px; }
+.st-grid .st-fig img { aspect-ratio: 1 !important; object-fit: cover; }
+.st-grid .st-fig figcaption { padding: 6px 4px 14px; }
+
+@media (min-width: 900px) {
+  .st-cover-tx { padding: 0 56px 64px; }
+  .st-kicker { font-size: 14px; }
+  .st-meta { font-size: 17px; }
+  .st-wide img { width: 100%; }
+  .st-tall { display: flex; flex-direction: column; align-items: center; }
+  .st-tall img { width: auto; max-width: 100%; height: 94vh; object-fit: cover; }
+  .st-tall figcaption { align-self: stretch; text-align: center; }
+  .st-duo { grid-template-columns: 1fr 1fr; }
+  .st-duo .st-fig figcaption { padding-left: 16px; }
+  .st-grid { grid-template-columns: repeat(3, 1fr); }
+  .st-text { font-size: 19px; }
+  .st-lede { font-size: 23px; }
+}
+
+.st-end { padding: 120px 24px 160px; text-align: center; color: #6f6b64; font-size: 14px; line-height: 1.8; }
+.st-end-t { font-family: var(--st-bold); font-size: 28px; color: #151515; letter-spacing: -0.03em; margin-bottom: 6px; }
+.st-end-b { margin-top: 18px; font-size: 12px; color: #9a968e; }
