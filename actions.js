@@ -145,6 +145,7 @@ async function openPhoto(id) {
     </div>`, { onClose: () => { flush(); rerender(); } });
   const ta = $('#note', sh);
   const flush = autosave(ta, async v => { if (p._gone) return; p.note = v.trim(); await DB.putPhoto(p); }, $('#note-st', sh));
+  if (window.Voice) Voice.attachMic(ta, $('#note-st', sh));
   const ad = $('#adate', sh);
   if (ad) ad.addEventListener('change', async () => { p.assignedDate = ad.value || null; await DB.putPhoto(p); $('#note-st', sh).textContent = '날짜를 넣었어요'; });
   $('#sizeSeg', sh).addEventListener('click', async e => {
@@ -168,6 +169,7 @@ function openTextSheet({ title, value, placeholder, multiline, save }) {
     <div class="sheet-actions"><button class="done" data-close>완료</button></div>`, { onClose: () => { flush(); rerender(); } });
   const el = $('#tx', sh);
   const flush = autosave(el, v => save(v.trim()), $('#tx-st', sh));
+  if (multiline && window.Voice) Voice.attachMic(el, $('#tx-st', sh));
   setTimeout(() => el.focus(), 250);
 }
 const curTrip = () => { const a = document.querySelector('[data-trip]'); return a && S.trips.find(t => t.id === a.dataset.trip); };
@@ -245,6 +247,7 @@ document.addEventListener('click', async e => {
   else if (act === 'export') { if (window.Export) Export.open(curTrip()); }
   else if (act === 'publish') { if (window.Publish) Publish.open(curTrip()); }
   else if (act === 'ai') { if (window.AI) AI.open(curTrip()); }
+  else if (act === 'voice') { if (window.Voice) Voice.quickNote(curTrip()); }
   else if (act === 'hide-photo') {
     const p = S.photos.find(x => x.id === a.dataset.id); p.hidden = true; delete p.show; await DB.putPhoto(p); closeSheet();
     toast('책에서 뺐어요. 사진은 그대로 있어요.', 4000, { label: '되돌리기', run: async () => { delete p.hidden; await DB.putPhoto(p); rerender(); } });

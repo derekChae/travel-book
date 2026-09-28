@@ -80,9 +80,8 @@ const imgTag = (p, kind) => `<img data-key="${p.id}:${kind}" src="${BLANK}" alt=
 
 function dockHtml(inTrip) {
   const folderOk = ('showDirectoryPicker' in window || 'webkitdirectory' in document.createElement('input')) && !/iPhone|iPad|iPod/i.test(navigator.userAgent);
-  return `<div class="dock"><button class="btn-main" data-act="add"><span class="plus">+</span> ${folderOk ? '날짜로 사진 넣기' : '사진 넣기'}</button>${inTrip
-    ? '<button class="btn-sub" data-act="ai">AI로 글쓰기</button>'
-    : folderOk ? '<button class="btn-sub" data-act="pick-files-direct">직접 고르기</button>' : ''}</div>`;
+  if (inTrip) return `<div class="dock dock-3"><button class="btn-sub" data-act="add">+ 사진</button><button class="btn-main" data-act="voice"><span class="mic-ico" aria-hidden="true"></span>말로 남기기</button><button class="btn-sub" data-act="ai">AI로 글쓰기</button></div>`;
+  return `<div class="dock"><button class="btn-main" data-act="add"><span class="plus">+</span> ${folderOk ? '날짜로 사진 넣기' : '사진 넣기'}</button>${folderOk ? '<button class="btn-sub" data-act="pick-files-direct">직접 고르기</button>' : ''}</div>`;
 }
 
 // ---------- 책장 ----------

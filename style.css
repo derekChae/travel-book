@@ -116,3 +116,22 @@ textarea { min-height: 120px; }
 
 @media print { .top, .dock, .toast, .sheet, .sheet-bg, .no-print, .page-bottom-space, .book-note { display: none !important; } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* 말로 쓰기 */
+.dock-3 .btn-main, .dock-3 .btn-sub { flex: 1; min-width: 0; padding: 0 8px; font-size: 14.5px; white-space: nowrap; }
+.dock-3 .btn-main { flex: 1.3; }
+.mic-ico { display: inline-block; width: 10px; height: 15px; border: 2px solid currentColor; border-radius: 6px; position: relative; margin-right: 2px; }
+.mic-ico::after { content: ""; position: absolute; left: 50%; bottom: -6px; width: 2px; height: 4px; background: currentColor; transform: translateX(-50%); }
+.mic-btn { display: inline-flex; align-items: center; gap: 8px; margin-top: 8px; height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font-size: 14px; }
+.mic-btn .dot { width: 10px; height: 10px; border-radius: 50%; background: #b3261e; }
+.mic-btn[aria-pressed="true"] { border-color: #b3261e; color: #b3261e; }
+.mic-btn[aria-pressed="true"] .dot { animation: micPulse 1s ease-in-out infinite; }
+.big-mic { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; margin: 16px 0 12px; padding: 18px 0 14px; border: 1px solid var(--line); border-radius: 16px; background: #fff; font-size: 15px; font-weight: 600; }
+.big-mic .ring { width: 64px; height: 64px; border-radius: 50%; background: var(--ink); box-shadow: 0 0 0 0 rgba(179,38,30,.35); }
+.big-mic[aria-pressed="true"] { border-color: #b3261e; color: #b3261e; }
+.big-mic[aria-pressed="true"] .ring { background: #b3261e; animation: ringPulse 1.2s ease-out infinite; }
+.sel { width: 100%; height: 46px; margin-top: 6px; padding: 0 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; font: inherit; font-size: 16px; }
+@keyframes micPulse { 50% { opacity: .3; } }
+@keyframes ringPulse { 0% { box-shadow: 0 0 0 0 rgba(179,38,30,.4); } 100% { box-shadow: 0 0 0 18px rgba(179,38,30,0); } }
+@media (prefers-reduced-motion: reduce) { .mic-btn .dot, .big-mic .ring { animation: none !important; } }
+.dock-3 > button { max-width: 300px; }

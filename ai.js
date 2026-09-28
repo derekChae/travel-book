@@ -34,7 +34,7 @@ function buildPrompt(t, d) {
   const notes = [];
   if (t.title) notes.push(`내가 정한 제목: "${t.title}" (그대로 써도 되고 더 좋게 다듬어도 돼)`);
   if (t.lede) notes.push(`내가 쓴 소개: "${t.lede}"`);
-  Object.entries(t.dayNotes || {}).forEach(([k, v]) => { if (v) notes.push(`${dayLabel(k)}에 내가 쓴 글: "${v}"`); });
+  Object.entries(t.dayNotes || {}).forEach(([k, v]) => { if (v) notes.push(`${dayLabel(k)}에 내가 쓰거나 말로 남긴 글: "${v}" (말로 남긴 거라 구어체일 수 있어. 내용은 살리고 문장만 다듬어줘)`); });
 
   return `첨부한 여행 사진으로 여행 매거진에 실을 글을 써줘.
 
