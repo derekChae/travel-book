@@ -278,7 +278,7 @@ document.addEventListener('click', async e => {
   const go = e.target.closest('[data-go]');
   const closer = e.target.closest('[data-close]');
   if (closer) closeSheet();
-  if (go) { location.hash = go.dataset.go; return; }
+  if (go) { App.go(go.dataset.go, go); return; }
   if (closer) return;
   const ph = e.target.closest('[data-photo]'); if (ph) { openPhoto(ph.dataset.photo); return; }
   const a = e.target.closest('[data-act]'); if (!a) return;
@@ -353,6 +353,7 @@ document.addEventListener('click', async e => {
     const [trips, photos] = await Promise.all([DB.allTrips(), DB.allPhotos()]);
     S.trips = trips; S.photos = photos;
   } catch (e) { console.error(e); toast('저장소를 열지 못했어요. 비공개 창에서는 저장이 안 될 수 있어요.', 5000); }
+  if (document.readyState === 'loading') await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
   route();
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => { });
 })();

@@ -81,39 +81,78 @@ const imgTag = (p, kind) => `<img data-key="${p.id}:${kind}" src="${BLANK}" alt=
 function dockHtml(inTrip) {
   const folderOk = ('showDirectoryPicker' in window || 'webkitdirectory' in document.createElement('input')) && !/iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (inTrip) return `<div class="dock dock-3"><button class="btn-sub" data-act="add">+ 사진</button><button class="btn-main" data-act="voice"><span class="mic-ico" aria-hidden="true"></span>말로 남기기</button><button class="btn-sub" data-act="ai">AI로 글쓰기</button></div>`;
-  return `<div class="dock"><button class="btn-main" data-act="add"><span class="plus">+</span> ${folderOk ? '날짜로 사진 넣기' : '사진 넣기'}</button>${folderOk ? '<button class="btn-sub" data-act="pick-files-direct">직접 고르기</button>' : ''}</div>`;
+  return `<nav class="fdock" aria-label="사진 넣기"><button class="fd-main" data-act="add"><span class="fi fi-plus" aria-hidden="true"></span>${folderOk ? '날짜로 사진 넣기' : '사진 넣기'}</button>${folderOk ? '<button data-act="pick-files-direct">직접 고르기</button>' : ''}</nav>`;
 }
 
 // ---------- 책장 ----------
-function renderHome() {
+let introPlayed = false;
+const split = (w, start) => [...w].map((c, i) => `<span class="ch" style="--d:${start + i}">${esc(c)}</span>`).join('');
+function renderHome({ quiet = false } = {}) {
   document.title = '나의 여행책';
   document.body.className = 'is-home';
   const list = orderedTrips();
-  let html = `<header class="top" id="top"><div class="brand">나의 여행책</div>
-    ${list.length ? `<button class="icon-btn" data-act="home-menu">더보기</button>` : ''}</header>`;
+  const mode = localStorage.getItem('shelfMode') === 'index' ? 'index' : 'stack';
+  const q = quiet || introPlayed; introPlayed = true;
+  const coverOf = (t, i) => Pages.plan(t, i.ps).cover;
+  let html = `<div class="shelf-root${q ? ' quiet' : ''}">
+    <header class="top" id="top"><div class="brand">나의 여행책</div><div style="flex:1"></div>
+      ${list.length ? `<div class="shelf-mode"><button data-shelf="stack" aria-pressed="${mode === 'stack'}">크게</button><button data-shelf="index" aria-pressed="${mode === 'index'}">목록</button></div>
+      <button class="icon-btn" data-act="home-menu">더보기</button>` : ''}</header>
+    <section class="sh-intro"><div class="sh-count">${list.length ? `여행 ${list.length}권 · 사진 ${S.photos.length}장` : '처음 오셨네요'}</div>
+      <h1 class="sh-title"><span class="ln">${split('나의', 0)}</span><span class="ln">${split('여행책', 2)}</span></h1></section>`;
+  const items = list.map(({ t, i }, k) => ({ t, i, no: String(k + 1).padStart(2, '0'), c: coverOf(t, i) })).reverse();
   if (!list.length) {
-    html += `<section class="welcome">
-      <h1>찍은 사진으로<br>나만의 여행책을</h1>
-      <p>여행 간 날짜만 고르면, 찍은 시각과 장소로 페이지가 알아서 짜여요. 글은 AI에게 초안을 부탁하고 눌러서 고치면 돼요.</p>
-      <div class="steps">
-        <div><b>1</b>아래 버튼을 누르고 여행 간 날짜만 골라요</div>
-        <div><b>2</b>사진이 책 페이지로 알아서 배치돼요</div>
-        <div><b>3</b>AI로 글쓰기 → 답을 붙여넣으면 글이 채워져요</div>
-      </div>
-    </section>`;
+    html += `<p class="sh-empty">여행 간 날짜만 고르면, 표지부터 사진이 화면 가득 채워진 여행책이 만들어져요.</p>`;
+  } else if (mode === 'stack') {
+    html += `<div class="stack">${items.map(({ t, i, no, c }, j) => `
+      <button class="card" style="--j:${j}" data-go="#/trip/${t.id}" data-trip-go="${t.id}" aria-label="${esc(i.title)} 열기">
+        <div class="card-in">
+          ${c ? `<img class="card-img" data-key="${c.id}:disp" src="${S.urls.get(c.id + ':disp') || BLANK}" alt="" style="${c.focus ? `object-position:${c.focus.x}% ${c.focus.y}%` : ''}">` : '<div class="card-empty">사진 없음</div>'}
+          <div class="card-tx"><div class="card-no">No.${no}${t.published ? ' · 발행됨' : ''}</div>
+            <h2 class="card-t">${esc(i.title)}</h2>
+            <div class="card-m">${fmtRange(i.start, i.end)} · 사진 ${i.ps.length}장${i.places.length ? ' · ' + esc(i.places.slice(0, 2).join(' · ')) : ''}</div></div>
+        </div></button>`).join('')}</div>`;
   } else {
-    html += `<div class="home-head"><h1>${list.length}권의 여행</h1><p>사진 ${S.photos.length}장</p></div>
-      <div class="shelf">${list.map(({ t, i }, k) => {
-        const plan = Pages.plan(t, i.ps); const c = plan.cover;
-        return `<button class="issue" data-go="#/trip/${t.id}">
-          <div class="issue-cover">${c ? imgTag(c, 'disp') : '<div class="empty">사진 없음</div>'}
-            <div class="issue-tx"><div class="issue-no">No.${String(k + 1).padStart(2, '0')}${t.published ? ' · 발행됨' : ''}</div><h2>${esc(i.title)}</h2><div class="meta">${fmtRange(i.start, i.end)} · ${plan.shown.length}장</div></div>
-          </div>
-        </button>`; }).join('')}</div>`;
+    html += `<ol class="ix">${items.map(({ t, i, no, c }, j) => `<li style="--j:${j}">
+      <button class="ix-row" data-go="#/trip/${t.id}" data-trip-go="${t.id}" ${c ? `data-cover="${c.id}:disp"` : ''}>
+        <span class="ix-no">${no}</span>
+        <span class="ix-main"><span class="ix-t">${esc(i.title)}</span><span class="ix-d">${fmtRange(i.start, i.end)} · ${i.ps.length}장</span></span>
+        <span class="ix-th">${c ? `<img data-key="${c.id}:thumb" src="${BLANK}" alt="">` : ''}</span>
+      </button></li>`).join('')}</ol><div class="ix-float" aria-hidden="true"><img alt="" src="${BLANK}"></div>`;
   }
-  html += `<div class="page-bottom-space"></div>${dockHtml(false)}`;
+  html += `<div class="page-bottom-space"></div>${dockHtml(false)}</div>`;
   view().innerHTML = html;
   hydrate(view());
+  if (window.Shelf) Shelf.mount(view(), { quiet: q });
+}
+
+// ---------- 화면 이동 (표지가 커지며 열리는 전환) ----------
+let rendered = null, homeY = 0;
+function go(hash, el) {
+  const nav = () => { location.hash = hash; if (location.hash !== rendered) route(); };
+  const toTrip = (hash.match(/^#\/trip\/(.+)$/) || [])[1];
+  const fromTrip = (location.hash.match(/^#\/trip\/(.+)$/) || [])[1];
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let src = null;
+  if (toTrip && document.body.classList.contains('is-home') && el) src = el.querySelector('img');
+  else if (fromTrip && hash === '#/' && window.scrollY < innerHeight * 0.6) src = document.querySelector('.st-cover-img');
+  if (!document.startViewTransition || reduce || !src || !src.src || src.src.startsWith('data:')) { nav(); return; }
+  src.style.viewTransitionName = 'hero-cover';
+  document.documentElement.classList.add(toTrip ? 'vt-open' : 'vt-close');
+  const vt = document.startViewTransition(async () => {
+    nav();
+    let dst = toTrip ? document.querySelector('.st-cover-img') : document.querySelector(`[data-trip-go="${fromTrip}"] img`);
+    if (!dst) return;
+    const key = dst.dataset.key || ''; const id = key.split(':')[0];
+    const cached = S.urls.get(id + ':print') || S.urls.get(id + ':disp');
+    if (cached && (!dst.src || dst.src.startsWith('data:'))) dst.src = cached;
+    dst.style.viewTransitionName = 'hero-cover';
+    await Promise.race([dst.decode().catch(() => { }), new Promise(r => setTimeout(r, 300))]);
+  });
+  vt.finished.finally(() => {
+    document.querySelectorAll('[style*="view-transition-name"]').forEach(x => { x.style.viewTransitionName = ''; });
+    document.documentElement.classList.remove('vt-open', 'vt-close');
+  });
 }
 
 // ---------- 한 권 ----------
@@ -162,9 +201,11 @@ function onScrollTop() {
   const t = $('#top'); if (!t) return;
   const y = window.scrollY;
   t.classList.toggle('scrolled', y > 4);
-  if (document.body.classList.contains('is-story')) {
-    const onCover = y < window.innerHeight - 80;
-    t.classList.toggle('on-cover', onCover);
+  if (document.body.classList.contains('is-home')) t.classList.toggle('show-brand', y > 200);
+  const story = document.body.classList.contains('is-story'), home = document.body.classList.contains('is-home');
+  if (story || home) {
+    const onCover = story ? y < window.innerHeight - 80 : y < 200;
+    if (story) t.classList.toggle('on-cover', onCover);
     // 사진 볼 때는 위아래 막대를 숨기고, 위로 올리거나 끝에 닿으면 다시 보여줌
     const atEnd = y + window.innerHeight >= document.documentElement.scrollHeight - 40;
     if (onCover || atEnd || y < lastY - 6) document.body.classList.remove('chrome-hidden');
@@ -190,22 +231,24 @@ async function renderPrint(which) {
 // ---------- 길찾기 ----------
 function route() {
   const h = location.hash || '#/';
-  window.scrollTo(0, 0);
+  if (document.body.classList.contains('is-home')) homeY = window.scrollY;
+  rendered = location.hash;
+  if (window.Shelf) Shelf.off();
   let m;
-  if ((m = h.match(/^#\/trip\/(.+)$/))) renderStory(decodeURIComponent(m[1]));
-  else if ((m = h.match(/^#\/book\/(.+)$/))) renderTrip(decodeURIComponent(m[1]));
-  else if ((m = h.match(/^#\/print\/(.+)$/))) renderPrint(decodeURIComponent(m[1]));
-  else renderHome();
+  if ((m = h.match(/^#\/trip\/(.+)$/))) { window.scrollTo(0, 0); renderStory(decodeURIComponent(m[1])); }
+  else if ((m = h.match(/^#\/book\/(.+)$/))) { window.scrollTo(0, 0); renderTrip(decodeURIComponent(m[1])); }
+  else if ((m = h.match(/^#\/print\/(.+)$/))) { window.scrollTo(0, 0); renderPrint(decodeURIComponent(m[1])); }
+  else { renderHome(); window.scrollTo(0, homeY); }
 }
 function rerender() {
   const y = window.scrollY; const h = location.hash || '#/';
   let m;
   if ((m = h.match(/^#\/trip\/(.+)$/))) renderStory(decodeURIComponent(m[1]));
   else if ((m = h.match(/^#\/book\/(.+)$/))) renderTrip(decodeURIComponent(m[1]));
-  else if (!h.startsWith('#/print')) renderHome();
+  else if (!h.startsWith('#/print')) renderHome({ quiet: true });
   window.scrollTo(0, y);
 }
-window.addEventListener('hashchange', route);
+window.addEventListener('hashchange', () => { if (location.hash !== rendered) route(); });
 window.addEventListener('scroll', onScrollTop, { passive: true });
 
 function toast(msg, ms = 2600, action) {
@@ -215,4 +258,4 @@ function toast(msg, ms = 2600, action) {
   document.body.appendChild(el); setTimeout(() => el.remove(), ms);
 }
 
-window.App = { storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };
+window.App = { go, renderHome, storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };

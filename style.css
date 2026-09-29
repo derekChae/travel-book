@@ -186,6 +186,7 @@ body.is-story .top-title { font-family: var(--bold); transition: opacity .2s; }
 
 body.is-story .top, .fdock { transition: transform .25s ease, background .2s, color .2s; }
 body.chrome-hidden .top { transform: translateY(-100%); }
+body.is-home.chrome-hidden .top { transform: none; }
 body.chrome-hidden .fdock { transform: translate(-50%, 140%); }
 body.is-story .st-cover-tx { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 @media (prefers-reduced-motion: reduce) { body.is-story .top, .fdock { transition: none; } }
