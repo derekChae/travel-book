@@ -4,6 +4,18 @@
 (() => {
 const { S, $, esc, toast, urlFor } = App;
 const MAX_IMAGES = 10;
+// 편집 규칙 (하네스). HARNESS.md와 같은 내용. 사람이 하든 AI가 하든 이 규칙대로 구성한다.
+const RULES = `편집 규칙
+1. 사실만: 사진에 보이는 것, 찍은 시각, 위치 정보, 내가 쓰거나 말로 남긴 메모만 근거로 쓴다. 같이 간 사람, 먹은 것, 기분, 사진으로 알 수 없는 장소 이름은 지어내지 않는다. 간판 글자처럼 사진에 보이는 글자는 보이는 그대로만 쓴다.
+2. 순서: 사진은 찍은 순서 그대로 둔다. 글도 시간 흐름(아침에서 저녁)을 따른다.
+3. 표지: 여행 전체를 대표하는 넓은 장면 한 장. 제목을 얹을 하늘이나 여백이 있는 사진, 사람이 작게 들어가 크기가 느껴지는 사진을 우선한다. 얼굴이 크게 나온 사진은 피한다.
+4. 화면 가득: 전체 사진의 약 5분의 1(최소 1장, 하루 2장 이하). 규모가 큰 풍경, 사람과 풍경의 크기 대비, 그 여행에서만 볼 수 있는 결정적 장면을 고른다. 표지와 같은 사진, 연달아 두 장은 고르지 않는다.
+5. 빼기: 거의 같은 구도의 반복, 흔들리거나 초점이 나간 사진만 뺀다. 애매하면 남긴다.
+6. 제목: 12자 이내 명사형. 계절, 시간, 사진에 보이는 것으로 짓는다. 위치 정보가 없으면 지명을 쓰지 않는다.
+7. 문체: 담백한 한국어 평서문(~다). 감탄사, 과장, 이모지, 번역투, 느낌표를 쓰지 않는다. 시각은 '아침 7시 반'처럼 자연스럽게 쓴다.
+8. 메모 우선: 내가 쓰거나 말로 남긴 글이 있으면 그 내용을 살리고 문장만 다듬는다. 말로 남긴 글은 구어체일 수 있다.`;
+
+
 
 function tripData(t) {
   const info = App.tripInfo(t);
@@ -36,19 +48,19 @@ function buildPrompt(t, d) {
   if (t.lede) notes.push(`내가 쓴 소개: "${t.lede}"`);
   Object.entries(t.dayNotes || {}).forEach(([k, v]) => { if (v) notes.push(`${dayLabel(k)}에 내가 쓰거나 말로 남긴 글: "${v}" (말로 남긴 거라 구어체일 수 있어. 내용은 살리고 문장만 다듬어줘)`); });
 
-  return `첨부한 여행 사진으로 여행 매거진에 실을 글을 써줘.
+  return `너는 이 여행책의 편집자야. 첨부한 사진과 아래 정보로 여행 매거진 한 편을 구성하고 글을 써줘. 아래 규칙을 반드시 지켜.
 
-규칙
-- 사진에 보이는 것과 아래 정보만 근거로 써. 사진에 안 보이는 건 지어내지 마. (누구와 갔는지, 먹은 음식, 기분 같은 건 보이지 않으면 쓰지 마)
-- 담백한 한국어 에세이 문체. 과장, 감탄사, 이모지, 번역투는 쓰지 마.
-- 내가 쓴 메모나 글이 있으면 그 내용을 살려서 다듬어줘.
-- 아래 형식 그대로, 대괄호 표시를 지켜서 답해줘. 앞뒤에 다른 말은 붙이지 마.
+${RULES}
 
-형식
+형식 (대괄호 표시를 그대로 쓰고, 앞뒤에 다른 말은 붙이지 마)
+[표지] 사진 번호 하나
+[화면 가득] 사진 번호들 (쉼표로)
+[빼기] 사진 번호들 또는 없음
+[초점 사진 N] 위/가운데/아래 + 왼/가운데/오른 (화면 가득·표지 사진 중 주인공이 가장자리에 있을 때만)
 [제목] 12자 이내
 [소개] 2문장 이내
-${dayKeys.map(k => `[${dayLabel(k)}] 3~5문장`).join('\n')}
-[사진 번호] 1~2문장 (할 말이 있는 사진만. 예: [사진 3] ...)
+${dayKeys.map(k => `[${dayLabel(k)}] 3~4문장`).join('\n')}
+[사진 N] 1~2문장 (할 말이 있는 사진만)
 
 여행 정보
 - 기간: ${Render.range(info.start, info.end) || '날짜 모름'}
@@ -75,14 +87,23 @@ async function makeFiles(d) {
 
 // ----- 답 읽기 -----
 function parseAnswer(text, d) {
-  const out = { title: null, lede: null, days: {}, photos: {} };
+  const out = { title: null, lede: null, days: {}, photos: {}, cover: null, hero: null, hide: null, focus: {} };
+  const nums = v => [...v.split('\n')[0].matchAll(/\d+/g)].map(x => d.shown[+x[0] - 1]).filter(Boolean).map(p => p.id);
   const clean = text.replace(/\*\*/g, '').replace(/\r/g, '');
-  const re = /\[\s*(제목|소개|날짜\s*모름|\d+\s*일차|사진\s*\d+)\s*\]\s*[:：]?\s*/g;
+  const re = /\[\s*(제목|소개|표지|화면\s*가득|빼기|초점\s*사진\s*\d+|날짜\s*모름|\d+\s*일차|사진\s*\d+)\s*\]\s*[:：]?\s*/g;
   const marks = []; let m;
   while ((m = re.exec(clean))) marks.push({ key: m[1].replace(/\s+/g, ''), start: m.index, end: re.lastIndex });
   marks.forEach((mk, i) => {
     const val = clean.slice(mk.end, i + 1 < marks.length ? marks[i + 1].start : undefined).trim().replace(/\n{3,}/g, '\n\n');
     if (!val) return;
+    if (mk.key === '표지') { out.cover = nums(val)[0] || null; return; }
+    if (mk.key === '화면가득') { out.hero = /없음/.test(val) ? [] : nums(val); return; }
+    if (mk.key === '빼기') { out.hide = /없음/.test(val) ? [] : nums(val); return; }
+    if (mk.key.startsWith('초점사진')) {
+      const p = d.shown[+mk.key.replace('초점사진', '') - 1]; if (!p) return;
+      const w = val.split('\n')[0];
+      out.focus[p.id] = { x: /왼/.test(w) ? 25 : /오른/.test(w) ? 75 : 50, y: /위/.test(w) ? 22 : /아래/.test(w) ? 80 : 50 }; return;
+    }
     if (mk.key === '제목') out.title = val.split('\n')[0].trim().replace(/^["“]|["”]$/g, '');
     else if (mk.key === '소개') out.lede = val;
     else if (mk.key.startsWith('사진')) { const n = +mk.key.slice(2); const p = d.shown[n - 1]; if (p) out.photos[p.id] = val; }
@@ -95,16 +116,26 @@ function parseAnswer(text, d) {
 }
 
 async function applyAnswer(t, r) {
-  const before = { title: t.title, lede: t.lede, dayNotes: { ...(t.dayNotes || {}) }, photos: {} };
+  const ps = S.photos.filter(p => p.tripId === t.id);
+  const before = { title: t.title, lede: t.lede, dayNotes: { ...(t.dayNotes || {}) }, coverId: t.coverId, photos: {} };
+  ps.forEach(p => { before.photos[p.id] = { note: p.note || '', hero: p.hero, hidden: p.hidden, focus: p.focus, layout: p.layout, show: p.show }; });
   if (r.title) t.title = r.title;
   if (r.lede) t.lede = r.lede;
+  if (r.cover) t.coverId = r.cover;
   t.dayNotes = { ...(t.dayNotes || {}), ...r.days };
   await DB.putTrip(t);
-  for (const [id, v] of Object.entries(r.photos)) { const p = S.photos.find(x => x.id === id); if (!p) continue; before.photos[id] = p.note || ''; p.note = v; await DB.putPhoto(p); }
+  for (const p of ps) {
+    if (r.photos[p.id]) p.note = r.photos[p.id];
+    if (r.hero) { if (r.hero.includes(p.id)) { p.hero = true; if (p.layout) delete p.layout; } else { delete p.hero; if (p.layout === 'big') delete p.layout; } }
+    if (r.hide) { if (r.hide.includes(p.id)) { p.hidden = true; delete p.hero; } else delete p.hidden; }
+    if (r.focus[p.id]) p.focus = r.focus[p.id];
+    if (p.id === r.cover) delete p.hidden;
+    await DB.putPhoto(p);
+  }
   App.rerender();
-  toast('글을 채웠어요', 6000, { label: '되돌리기', run: async () => {
-    t.title = before.title; t.lede = before.lede; t.dayNotes = before.dayNotes; await DB.putTrip(t);
-    for (const [id, v] of Object.entries(before.photos)) { const p = S.photos.find(x => x.id === id); if (p) { p.note = v; await DB.putPhoto(p); } }
+  toast('편집안대로 채웠어요', 6000, { label: '되돌리기', run: async () => {
+    t.title = before.title; t.lede = before.lede; t.dayNotes = before.dayNotes; t.coverId = before.coverId; await DB.putTrip(t);
+    for (const p of ps) { const o = before.photos[p.id]; p.note = o.note; ['hero', 'hidden', 'focus', 'layout', 'show'].forEach(k => { if (o[k] === undefined) delete p[k]; else p[k] = o[k]; }); await DB.putPhoto(p); }
     App.rerender();
   } });
 }
@@ -120,6 +151,10 @@ function openPaste(t, d, preset = '') {
   const show = () => {
     parsed = parseAnswer(ta.value, d);
     const rows = [];
+    const nm = id => '사진 ' + (d.shown.findIndex(p => p.id === id) + 1);
+    if (parsed.cover) rows.push(['표지', nm(parsed.cover)]);
+    if (parsed.hero) rows.push(['화면 가득', parsed.hero.length ? parsed.hero.map(nm).join(', ') : '없음']);
+    if (parsed.hide && parsed.hide.length) rows.push(['빼기', parsed.hide.map(nm).join(', ')]);
     if (parsed.title) rows.push(['제목', parsed.title]);
     if (parsed.lede) rows.push(['소개', parsed.lede]);
     Object.entries(parsed.days).forEach(([k, v]) => rows.push([d.dayLabel(k), v]));
@@ -157,7 +192,7 @@ async function open(t) {
   const bi = await builtinStatus();
   const canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [new File([new Blob(['x'], { type: 'image/jpeg' })], 'a.jpg', { type: 'image/jpeg' })] }));
   const sh = App.openSheet(`<h3>AI로 글쓰기</h3>
-    <p>사진 ${d.attach.length}장과 요청문을 AI에게 보내고, 받은 답을 붙여넣으면 제목·소개·날짜별 글·사진 설명이 제자리에 채워져요.</p>
+    <p>사진 ${d.attach.length}장과 편집 규칙을 AI에게 보내요. 받은 답을 붙여넣으면 표지·화면 가득·빼기 같은 구성과 제목·글이 한 번에 채워져요.</p>
     ${d.shown.length > d.attach.length ? `<p class="saved">사진이 많아서 고르게 ${d.attach.length}장만 보내요. 나머지는 시각·장소 정보만 보내요.</p>` : ''}
     <div class="pick-list">
       ${canShareFiles ? `<button id="go-share"><b>1. ChatGPT · Gemini 앱으로 보내기</b><small>공유 창에서 앱을 고르면 사진과 요청문이 같이 들어가요</small></button>` : ''}
@@ -186,5 +221,5 @@ async function open(t) {
   $('#go-bi', sh)?.addEventListener('click', () => runBuiltin(t, d, sh));
 }
 
-window.AI = { open, buildPrompt, parseAnswer, tripData, builtinStatus };
+window.AI = { open, buildPrompt, parseAnswer, applyAnswer, tripData, builtinStatus, RULES };
 })();
