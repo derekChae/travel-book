@@ -62,8 +62,102 @@ async function makeImages(file) {
   const print = await resizeTo(bmp, 3000, 0.9);
   const disp = await resizeTo(bmp, 1600, 0.86);
   const thumb = await resizeTo(bmp, 480, 0.8);
+  const tone = toneOf(bmp);
   if (bmp.close) bmp.close();
-  return { w, h, print, disp, thumb };
+  return { w, h, print, disp, thumb, tone };
+}
+
+
+// ---------- 사진의 대표 색 (배경을 사진 색으로 물들이는 데 씀) ----------
+function toneOf(src) {
+  try {
+    const c = document.createElement('canvas'); c.width = 24; c.height = 24;
+    const g = c.getContext('2d', { willReadFrequently: true }); g.drawImage(src, 0, 0, 24, 24);
+    const d = g.getImageData(0, 0, 24, 24).data; const px = [];
+    for (let i = 0; i < d.length; i += 4) {
+      const r = d[i], gg = d[i + 1], b = d[i + 2]; const mx = Math.max(r, gg, b), mn = Math.min(r, gg, b);
+      const l = (mx + mn) / 2; if (l < 25 || l > 240) continue;
+      px.push([r, gg, b, mx === 0 ? 0 : (mx - mn) / mx]);
+    }
+    if (!px.length) return [128, 128, 128];
+    px.sort((a, b) => b[3] - a[3]); const top = px.slice(0, Math.max(8, Math.round(px.length * 0.3)));
+    const avg = k => Math.round(top.reduce((s, p) => s + p[k], 0) / top.length);
+    return [avg(0), avg(1), avg(2)];
+  } catch { return null; }
+}
+
+// ---------- 영상 ----------
+const VIDEO_RE = /\.(mp4|mov|m4v|webm|3gp)$/i;
+const isVideo = f => /^video\//.test(f.type) || VIDEO_RE.test(f.name);
+
+// 파일 이름 속 촬영 시각 (갤럭시: 20260510_090122.mp4 = 찍은 곳 시각)
+function timeFromName(name) {
+  const m = name.match(/(?:^|[^0-9])(20\d{2})(\d{2})(\d{2})_(\d{2})(\d{2})(\d{2})/);
+  if (!m || /^PXL_/.test(name)) return null;
+  return `${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}`;
+}
+function findBytes(u8, pat) {
+  outer: for (let i = 0; i <= u8.length - pat.length; i++) { for (let j = 0; j < pat.length; j++) if (u8[i + j] !== pat[j]) continue outer; return i; }
+  return -1;
+}
+// MP4/MOV 안의 생성 시각(mvhd, 세계 표준시)과 위치(©xyz)
+async function mp4Meta(file) {
+  const out = { utc: null, lat: null, lon: null };
+  const parts = [file.slice(0, Math.min(file.size, 2 << 20))];
+  if (file.size > 2 << 20) parts.push(file.slice(Math.max(0, file.size - (6 << 20))));
+  for (const part of parts) {
+    const u8 = new Uint8Array(await part.arrayBuffer());
+    if (!out.utc) {
+      const i = findBytes(u8, [0x6d, 0x76, 0x68, 0x64]); // 'mvhd'
+      if (i > 0 && i + 16 < u8.length) {
+        const dv = new DataView(u8.buffer, u8.byteOffset + i + 4); const ver = dv.getUint8(0);
+        const secs = ver === 1 ? Number(dv.getBigUint64(4)) : dv.getUint32(4);
+        if (secs > 0) { const ms = (secs - 2082844800) * 1000; if (ms > Date.UTC(2000, 0, 1) && ms < Date.UTC(2100, 0, 1)) out.utc = ms; }
+      }
+    }
+    if (out.lat == null) {
+      const j = findBytes(u8, [0xa9, 0x78, 0x79, 0x7a]); // '©xyz'
+      if (j > 0) {
+        const s = new TextDecoder('latin1').decode(u8.subarray(j + 4, j + 60));
+        const mm = s.match(/([+-]\d{1,2}\.\d+)([+-]\d{1,3}\.\d+)/);
+        if (mm) { const la = +mm[1], lo = +mm[2]; if (!(la === 0 && lo === 0)) { out.lat = +la.toFixed(5); out.lon = +lo.toFixed(5); } }
+      }
+    }
+  }
+  return out;
+}
+function localFromUtc(ms, offset) {
+  const sign = offset[0] === '-' ? -1 : 1; const [hh, mm] = offset.slice(1).split(':').map(Number);
+  return new Date(ms + sign * (hh * 60 + mm) * 60000).toISOString().slice(0, 19);
+}
+async function readVideoInfo(file, offsetGuess) {
+  const info = { taken: null, offset: null, timeSource: null, lat: null, lon: null, camera: null };
+  const byName = timeFromName(file.name);
+  let meta = { utc: null, lat: null, lon: null };
+  try { meta = await mp4Meta(file); } catch { }
+  if (byName) { info.taken = byName; info.offset = offsetGuess || null; info.timeSource = 'filename'; }
+  else if (meta.utc) {
+    if (offsetGuess) { info.taken = localFromUtc(meta.utc, offsetGuess); info.offset = offsetGuess; }
+    else { info.taken = new Date(meta.utc).toISOString().slice(0, 19); info.offset = '+00:00'; }
+    info.timeSource = 'video';
+  }
+  info.lat = meta.lat; info.lon = meta.lon;
+  return info;
+}
+// 영상 길이·크기와 대표 장면(포스터)
+async function makeVideoImages(file) {
+  const url = URL.createObjectURL(file);
+  try {
+    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+    await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = () => rej(new Error('영상을 열 수 없어요')); setTimeout(() => rej(new Error('영상 읽기 시간 초과')), 15000); });
+    const duration = isFinite(v.duration) ? v.duration : 0;
+    const t = duration ? Math.min(duration * 0.3, 2) : 0;
+    await new Promise(res => { v.onseeked = res; v.currentTime = t; setTimeout(res, 4000); });
+    const w = v.videoWidth || 1280, h = v.videoHeight || 720;
+    const src = document.createElement('canvas'); src.width = w; src.height = h; src.getContext('2d').drawImage(v, 0, 0, w, h);
+    const print = await resizeTo(src, 3000, 0.9), disp = await resizeTo(src, 1600, 0.86), thumb = await resizeTo(src, 480, 0.8);
+    return { w, h, duration, print, disp, thumb, tone: toneOf(src) };
+  } finally { URL.revokeObjectURL(url); }
 }
 
 // ---------- 장소 이름 (기기 안에 있는 도시 목록으로 찾음, 인터넷 안 씀) ----------
@@ -157,4 +251,4 @@ function assignTrips(newPhotos, trips, allPhotos, makeTrip) {
   return { touched, created };
 }
 
-window.Meta = { readPhotoInfo, makeImages, placeFor, loadCities, sortPhotos, assignTrips, absTime, dayOf, dayDiff, parseExifDate, parseOffset };
+window.Meta = { toneOf, isVideo, readVideoInfo, makeVideoImages, mp4Meta, timeFromName, readPhotoInfo, makeImages, placeFor, loadCities, sortPhotos, assignTrips, absTime, dayOf, dayDiff, parseExifDate, parseOffset };

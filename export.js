@@ -24,7 +24,7 @@ function markdown(t) {
     if (day.note) md += `${day.note}\n\n`;
     for (const p of day.photos) {
       const cap = Render.capText(p);
-      md += `![사진 ${no(p)}](photos/${nn(no(p))}.jpg)\n*사진 ${no(p)} · ${cap}*\n\n`;
+      md += p.kind === 'video' ? `[영상 ${no(p)} · ${Story.dur(p.duration)}](videos/${nn(no(p))}${(p.fileName.match(/\.\w+$/) || ['.mp4'])[0]})\n![영상 ${no(p)} 대표 장면](photos/${nn(no(p))}.jpg)\n*영상 ${no(p)} · ${cap}*\n\n` : `![사진 ${no(p)}](photos/${nn(no(p))}.jpg)\n*사진 ${no(p)} · ${cap}*\n\n`;
       if (p.note) md += `${p.note}\n\n`;
     }
   }
@@ -46,7 +46,7 @@ function plainText(t) {
 async function zipFor(t) {
   const { d, no } = sections(t);
   const entries = [{ name: '여행글.md', data: markdown(t) }, { name: '블로그용.txt', data: plainText(t) }];
-  for (const p of d.shown) { const b = await DB.getBlob(p.id + ':disp'); if (b) entries.push({ name: `photos/${nn(no(p))}.jpg`, data: b }); }
+  for (const p of d.shown) { const b = await DB.getBlob(p.id + ':disp'); if (b) entries.push({ name: `photos/${nn(no(p))}.jpg`, data: b }); if (p.kind === 'video') { const v = await DB.getBlob(p.id + ':video'); if (v) entries.push({ name: `videos/${nn(no(p))}${(p.fileName.match(/\.\w+$/) || ['.mp4'])[0]}`, data: v }); } }
   return Zip.makeZip(entries);
 }
 function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000); }

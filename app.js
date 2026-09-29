@@ -98,19 +98,28 @@ function renderHome({ quiet = false } = {}) {
     <header class="top" id="top"><div class="brand">나의 여행책</div><div style="flex:1"></div>
       ${list.length ? `<div class="shelf-mode"><button data-shelf="stack" aria-pressed="${mode === 'stack'}">크게</button><button data-shelf="index" aria-pressed="${mode === 'index'}">목록</button></div>
       <button class="icon-btn" data-act="home-menu">더보기</button>` : ''}</header>
-    <section class="sh-intro"><div class="sh-count">${list.length ? `여행 ${list.length}권 · 사진 ${S.photos.length}장` : '처음 오셨네요'}</div>
+    <section class="sh-intro"><div class="sh-count">${list.length ? `여행 ${list.length}권 · 사진 ${S.photos.filter(p => p.kind !== 'video').length}장${S.photos.some(p => p.kind === 'video') ? ` · 영상 ${S.photos.filter(p => p.kind === 'video').length}개` : ''}` : '처음 오셨네요'}</div>
       <h1 class="sh-title"><span class="ln">${split('나의', 0)}</span><span class="ln">${split('여행책', 2)}</span></h1></section>`;
-  const items = list.map(({ t, i }, k) => ({ t, i, no: String(k + 1).padStart(2, '0'), c: coverOf(t, i) })).reverse();
+  if (list.length) {
+    const nowM = App.today ? App.today() : new Date(); const mdM = `${String(nowM.getMonth() + 1).padStart(2, '0')}-${String(nowM.getDate()).padStart(2, '0')}`;
+    const memT = list.map(({ t, i }) => ({ t, i, d: i.days.find(x => x.slice(5) === mdM && +x.slice(0, 4) < nowM.getFullYear()) })).filter(x => x.d).pop();
+    if (memT) { const c = coverOf(memT.t, memT.i); html += `<section class="sh-mem-wrap"><button class="sh-mem" data-go="#/trip/${memT.t.id}" data-trip-go="${memT.t.id}">${c ? `<img data-key="${c.id}:thumb" src="${BLANK}" alt="">` : ''}<span><b>${nowM.getFullYear() - +memT.d.slice(0, 4)}년 전 오늘</b>${esc(memT.i.title)}</span></button></section>`; }
+  }
+  // N년 전 오늘
+  const now = App.today ? App.today() : new Date(); const md = `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const agoOf = i => { const d = i.days.find(x => x.slice(5) === md && +x.slice(0, 4) < now.getFullYear()); return d ? now.getFullYear() - +d.slice(0, 4) : 0; };
+  const items = list.map(({ t, i }, k) => ({ t, i, no: String(k + 1).padStart(2, '0'), c: coverOf(t, i), ago: agoOf(i) })).reverse();
+  const mem = items.find(x => x.ago);
   if (!list.length) {
     html += `<p class="sh-empty">여행 간 날짜만 고르면, 표지부터 사진이 화면 가득 채워진 여행책이 만들어져요.</p>`;
   } else if (mode === 'stack') {
-    html += `<div class="stack">${items.map(({ t, i, no, c }, j) => `
+    html += `<div class="stack">${items.map(({ t, i, no, c, ago }, j) => `
       <button class="card" style="--j:${j}" data-go="#/trip/${t.id}" data-trip-go="${t.id}" aria-label="${esc(i.title)} 열기">
         <div class="card-in">
           ${c ? `<img class="card-img" data-key="${c.id}:disp" src="${S.urls.get(c.id + ':disp') || BLANK}" alt="" style="${c.focus ? `object-position:${c.focus.x}% ${c.focus.y}%` : ''}">` : '<div class="card-empty">사진 없음</div>'}
-          <div class="card-tx"><div class="card-no">No.${no}${t.published ? ' · 발행됨' : ''}</div>
+          <div class="card-tx"><div class="card-no">No.${no}${ago ? ` · ${ago}년 전 오늘` : ''}${t.published ? ' · 발행됨' : ''}</div>
             <h2 class="card-t">${esc(i.title)}</h2>
-            <div class="card-m">${fmtRange(i.start, i.end)} · 사진 ${i.ps.length}장${i.places.length ? ' · ' + esc(i.places.slice(0, 2).join(' · ')) : ''}</div></div>
+            <div class="card-m">${fmtRange(i.start, i.end)} · ${i.ps.some(p => p.kind === 'video') ? `사진 ${i.ps.filter(p => p.kind !== 'video').length} · 영상 ${i.ps.filter(p => p.kind === 'video').length}` : `사진 ${i.ps.length}장`}${i.places.length ? ' · ' + esc(i.places.slice(0, 2).join(' · ')) : ''}</div></div>
         </div></button>`).join('')}</div>`;
   } else {
     html += `<ol class="ix">${items.map(({ t, i, no, c }, j) => `<li style="--j:${j}">
@@ -177,7 +186,7 @@ function renderTrip(id) {
 function storyCtx(t, { edit = false, img } = {}) {
   const { info, plan, ctx } = bookCtx(t, { edit });
   return { info, plan, sctx: { ...ctx, info: ctx.info, trip: t, edit, shown: plan.shown, cover: plan.cover,
-    img: img || ((p, role) => `data-key="${p.id}:${role === 'hero' ? 'print' : 'disp'}" src="${BLANK}"`) } };
+    img: img || ((p, role) => `data-key="${p.id}:${role === 'hero' ? 'print' : role === 'thumb' ? 'thumb' : 'disp'}" src="${BLANK}"`) } };
 }
 function renderStory(id) {
   const t = S.trips.find(x => x.id === id);
@@ -192,6 +201,7 @@ function renderStory(id) {
     ${storyDock()}`;
   hydrate(view());
   onScrollTop();
+  if (window.Motion) Motion.mount(view().querySelector('.st'), { trip: t });
 }
 function storyDock() {
   return `<nav class="fdock" aria-label="기록 도구"><button data-act="add"><span class="fi fi-plus" aria-hidden="true"></span>사진</button><button class="fd-main" data-act="voice"><span class="fi fi-mic" aria-hidden="true"></span>말로 남기기</button><button data-act="ai">AI 글쓰기</button></nav>`;
@@ -258,4 +268,4 @@ function toast(msg, ms = 2600, action) {
   document.body.appendChild(el); setTimeout(() => el.remove(), ms);
 }
 
-window.App = { go, renderHome, storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };
+window.App = { today: null, go, renderHome, storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };

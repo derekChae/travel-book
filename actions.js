@@ -39,14 +39,14 @@ function pickFiles() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.multiple = true;
   // 안드로이드 크롬은 '사진 고르기' 창에서 위치 정보를 지워버림. 파일 창으로 열면 위치가 남음.
-  inp.accept = isAndroid ? 'image/*,text/plain' : 'image/*';
+  inp.accept = isAndroid ? 'image/*,video/*,text/plain' : 'image/*,video/*';
   inp.style.display = 'none'; document.body.appendChild(inp);
   inp.addEventListener('change', () => { const files = [...inp.files]; inp.remove(); if (files.length) importFiles(files); });
   inp.click();
 }
 
 async function importFiles(files) {
-  files = files.filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name));
+  files = files.filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name) || Meta.isVideo(f));
   if (!files.length) { toast('넣을 사진이 없어요'); return; }
   const sh = openSheet(`<h3>사진 정리하는 중</h3><div class="progress"><i></i></div><div class="saved" id="prog-txt">0 / ${files.length}</div>
     <div class="tip">사진이 많으면 조금 걸려요. 화면을 켜 둔 채로 기다려 주세요. 중간에 멈춰도 정리된 사진은 저장돼 있어요.</div>`);
@@ -54,6 +54,8 @@ async function importFiles(files) {
   let lock = null; try { lock = await navigator.wakeLock?.request('screen'); } catch { }
   const existing = new Set(S.photos.map(p => p.sig));
   const newPhotos = [], failed = [], skipped = [];
+  // 영상은 시간대 정보가 없어서, 같이 넣은 사진들의 시간대를 빌려 씀
+  const offsetGuess = () => { const c = {}; [...S.photos, ...newPhotos, ...batch].forEach(p => { if (p.offset && p.kind !== 'video') c[p.offset] = (c[p.offset] || 0) + 1; }); return Object.keys(c).sort((x, y) => c[y] - c[x])[0] || null; };
   const touched = new Set(), created = [];
   let batch = [], blobs = [];
   const flushBatch = async () => {
@@ -72,15 +74,18 @@ async function importFiles(files) {
       const f = files[k];
       txt.textContent = `${k + 1} / ${files.length}`; bar.style.width = ((k + 1) / files.length * 100) + '%';
       try {
-        const info = await Meta.readPhotoInfo(f);
+        const vid = Meta.isVideo(f);
+        const info = vid ? await Meta.readVideoInfo(f, offsetGuess()) : await Meta.readPhotoInfo(f);
         const sig = `${info.taken || ''}|${f.size}|${f.name}`;
         if (existing.has(sig)) { skipped.push(f.name); continue; }
-        const im = await Meta.makeImages(f);
+        const im = vid ? await Meta.makeVideoImages(f) : await Meta.makeImages(f);
         const place = await Meta.placeFor(info.lat, info.lon);
         const id = uid();
-        batch.push({ id, tripId: null, taken: info.taken, offset: info.offset, timeSource: info.timeSource, lat: info.lat, lon: info.lon,
+        batch.push({ id, tripId: null, kind: vid ? 'video' : 'photo', duration: vid ? im.duration : undefined, tone: im.tone || null,
+          taken: info.taken, offset: info.offset, timeSource: info.timeSource, lat: info.lat, lon: info.lon,
           place, camera: info.camera, w: im.w, h: im.h, note: '', fileName: f.name, size: f.size, type: f.type, sig, addedSeq: Date.now() + (seq++), addedAt: new Date().toISOString() });
         blobs.push([id + ':print', im.print], [id + ':disp', im.disp], [id + ':thumb', im.thumb]);
+        if (vid) blobs.push([id + ':video', f]);
         existing.add(sig);
       } catch (e) { console.warn(e); failed.push(f.name); }
       if (batch.length >= 12) await flushBatch();
@@ -98,7 +103,7 @@ async function importFiles(files) {
   const noGps = newPhotos.filter(p => p.lat == null).length;
   const tripLinks = [...touched].map(id => S.trips.find(t => t.id === id)).filter(Boolean);
   closeSheet(true);
-  const r = openSheet(`<h3>${newPhotos.length ? `사진 ${newPhotos.length}장을 정리했어요` : '새로 넣은 사진이 없어요'}</h3>
+  const r = openSheet(`<h3>${newPhotos.length ? `${newPhotos.some(p => p.kind === 'video') ? '사진·영상' : '사진'} ${newPhotos.length}개를 정리했어요` : '새로 넣은 사진이 없어요'}</h3>
     <ul class="result-list">
       ${tripLinks.map(t => { const i = tripInfo(t); const isNew = created.some(c => c.id === t.id);
         return `<li><button class="chip" data-go="#/trip/${t.id}" data-close>${isNew ? '새 여행 · ' : ''}${esc(i.title)} 보기</button></li>`; }).join('')}
@@ -125,6 +130,7 @@ async function openPhoto(id) {
   const size = (p.hero || p.layout === 'big') ? 'big' : (p.layout || 'auto');
   const sh = openSheet(`
     <div class="focus-wrap"><img class="sheet-photo" id="fp-img" alt="" src="${await urlFor(p.id + ':disp')}"><span class="focus-dot" id="fp-dot" hidden></span></div>
+    ${p.kind === 'video' ? `<button class="chip" id="fp-play" style="margin-top:8px">영상 재생 · ${Story.dur(p.duration)}</button>` : ''}
     <div class="saved" id="fp-help" hidden>화면을 꽉 채우면 가장자리가 잘려요. 사진에서 꼭 보여야 할 곳을 눌러 주세요.</div>
     <dl class="facts">
       <dt>찍은 때</dt><dd>${when ? esc(when) : '<span class="unknown">사진에 날짜 정보가 없어요</span>'}</dd>
@@ -147,6 +153,7 @@ async function openPhoto(id) {
   const ta = $('#note', sh);
   const flush = autosave(ta, async v => { if (p._gone) return; p.note = v.trim(); await DB.putPhoto(p); }, $('#note-st', sh));
   // 화면 가득/표지일 때: 꼭 보여야 할 곳 누르기
+  $('#fp-play', sh)?.addEventListener('click', () => { closeSheet(true); Motion.openPlayer(p.id); });
   const fImg = $('#fp-img', sh), fDot = $('#fp-dot', sh), fHelp = $('#fp-help', sh);
   const isBig = () => !!(p.hero || p.layout === 'big' || (t.coverId ? t.coverId === p.id : plan.cover && plan.cover.id === p.id));
   const placeDot = () => {
@@ -242,7 +249,7 @@ const curTrip = () => { const a = document.querySelector('[data-trip]'); return 
 async function exportBackup() {
   toast('백업 파일 만드는 중…');
   const entries = [{ name: 'data.json', data: JSON.stringify({ app: 'travel-book', version: 1, exportedAt: new Date().toISOString(), trips: S.trips, photos: S.photos }) }];
-  for (const p of S.photos) for (const k of ['orig', 'print', 'disp', 'thumb']) {
+  for (const p of S.photos) for (const k of ['orig', 'print', 'disp', 'thumb', 'video']) {
     const b = await DB.getBlob(p.id + ':' + k); if (b) entries.push({ name: `photos/${p.id}.${k}`, data: b });
   }
   const zip = await Zip.makeZip(entries);
@@ -262,8 +269,8 @@ function importBackup() {
       const haveT = new Set(S.trips.map(t => t.id)), haveP = new Set(S.photos.map(p => p.id));
       const trips = data.trips.filter(t => !haveT.has(t.id)), photos = data.photos.filter(p => !haveP.has(p.id));
       const blobs = [];
-      for (const p of photos) for (const k of ['orig', 'print', 'disp', 'thumb']) {
-        const u8 = files[`photos/${p.id}.${k}`]; if (u8) blobs.push([p.id + ':' + k, new Blob([u8], { type: k === 'orig' ? (p.type || 'image/jpeg') : 'image/jpeg' })]);
+      for (const p of photos) for (const k of ['orig', 'print', 'disp', 'thumb', 'video']) {
+        const u8 = files[`photos/${p.id}.${k}`]; if (u8) blobs.push([p.id + ':' + k, new Blob([u8], { type: (k === 'orig' || k === 'video') ? (p.type || 'application/octet-stream') : 'image/jpeg' })]);
       }
       await DB.saveImport({ trips, photos, blobs });
       S.trips = S.trips.concat(trips); S.photos = S.photos.concat(photos);
@@ -357,6 +364,6 @@ document.addEventListener('click', async e => {
   route();
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => { });
 })();
-window.Actions = { importFiles, exportBackup, pickFiles };
+window.Actions = { importFiles, exportBackup, pickFiles, openPhoto };
 App.openSheet = openSheet; App.closeSheet = closeSheet;
 })();

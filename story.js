@@ -5,6 +5,10 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const paras = t => esc(t).split('\n').filter(s => s.trim()).map(s => `<p>${s}</p>`).join('');
 const ar = p => (p.w && p.h) ? p.w / p.h : 1;
 const isHero = p => !!(p.hero || p.layout === 'big');
+const isVid = p => p.kind === 'video';
+const dur = s => { s = Math.round(s || 0); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const tone = p => p.tone ? `data-tone="${p.tone.join(',')}"` : '';
+const stamp = p => { const d = App.dayKey(p); return `data-t="${p.taken ? p.taken.slice(11, 16) : ''}" data-d="${d || ''}" data-pl="${esc(p.place && p.place.name || '')}"`; };
 
 // 사진 흐름 짜기 (찍은 순서 그대로)
 function blocks(photos) {
@@ -32,11 +36,16 @@ function storyHTML(ctx) {
   const tapP = p => E ? `data-photo="${p.id}" role="button" tabindex="0"` : '';
   const star = p => E && isHero(p) ? '<span class="st-badge">화면 가득</span>' : '';
   const pos = p => p.focus ? `object-position:${p.focus.x}% ${p.focus.y}%` : '';
-  const fig = (p, cls = '', role = 'body') => `<figure class="st-fig ${cls}">${star(p)}<img ${ctx.img(p, role)} alt="${esc(p.note ? p.note.slice(0, 60) : cap(p))}" ${tapP(p)} style="aspect-ratio:${(p.w || 1)}/${(p.h || 1)}"><figcaption>${esc(cap(p))}</figcaption></figure>`;
+  const canVid = p => isVid(p) && ctx.videos !== false;
+  // 영상: 화면에 보이면 소리 없이 재생, 누르면 소리와 함께 크게
+  const media = (p, role, extra = '') => canVid(p)
+    ? `<video class="st-v" ${ctx.img(p, role).replace(/\bsrc=/, 'data-poster=')} data-vkey="${p.id}:video" data-vid="${p.id}" muted playsinline loop preload="none" ${extra}></video><button class="st-play" data-play="${p.id}" aria-label="소리 켜고 보기"><span class="pl-i" aria-hidden="true"></span>${dur(p.duration)}</button>`
+    : `<img ${ctx.img(p, role)} alt="${esc(p.note ? p.note.slice(0, 60) : cap(p))}" ${tapP(p)} ${extra}>${isVid(p) ? `<span class="st-vtag">영상 ${dur(p.duration)}</span>` : ''}`;
+  const fig = (p, cls = '', role = 'body') => `<figure class="st-fig ${cls}${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, role, `style="aspect-ratio:${(p.w || 1)}/${(p.h || 1)}"`)}<figcaption>${esc(cap(p))}</figcaption></figure>`;
   const cover = ctx.cover;
   let h = `<article class="st">
-  <header class="st-cover ${cover ? '' : 'no-photo'}">
-    ${cover ? `<img class="st-cover-img" ${ctx.img(cover, 'hero')} alt="" ${tapP(cover)} style="${pos(cover)}">` : ''}
+  <header class="st-cover ${cover ? '' : 'no-photo'}" ${cover ? tone(cover) : ''}>
+    ${cover ? (canVid(cover) ? `<video class="st-cover-img st-v" ${ctx.img(cover, 'hero').replace(/\bsrc=/, 'data-poster=')} data-vkey="${cover.id}:video" data-vid="${cover.id}" muted playsinline loop preload="none" style="${pos(cover)}"></video>` : `<img class="st-cover-img" ${ctx.img(cover, 'hero')} alt="" ${tapP(cover)} style="${pos(cover)}">`) : ''}
     <div class="st-cover-tx">
       <div class="st-kicker">나의 여행책 No.${ctx.issueNo}${info.countries.length ? ' · ' + esc(info.countries.join(' · ')) : ''}</div>
       <h1 ${E ? 'data-act="edit-title" role="button" tabindex="0"' : ''}>${esc(info.title)}</h1>
@@ -64,7 +73,7 @@ function storyHTML(ctx) {
     }
     for (const b of blocks(days.get(k))) {
       const p = b.ps[0];
-      if (b.t === 'full') h += `<section class="st-full">${star(p)}<img ${ctx.img(p, 'hero')} alt="${esc(cap(p))}" ${tapP(p)} style="${pos(p)}"></section><div class="st-full-cap">${esc(cap(p))}</div>${p.note ? `<section class="st-text" ${tapP(p)}>${paras(p.note)}</section>` : ''}`;
+      if (b.t === 'full') h += `<section class="st-full${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, 'hero', `style="${pos(p)}"`)}</section><div class="st-full-cap">${esc(cap(p))}</div>${p.note ? `<section class="st-text" ${tapP(p)}>${paras(p.note)}</section>` : ''}`;
       else if (b.t === 'wide') h += fig(p, 'st-wide');
       else if (b.t === 'tall') h += fig(p, 'st-tall');
       else if (b.t === 'duo') h += `<div class="st-duo">${fig(b.ps[0])}${fig(b.ps[1])}</div>`;
@@ -72,9 +81,22 @@ function storyHTML(ctx) {
       else if (b.t === 'story') h += `${fig(p, ar(p) >= 1.15 ? 'st-wide' : 'st-tall')}<section class="st-text" ${tapP(p)}>${paras(p.note)}</section>`;
     }
   });
-  h += `<footer class="st-end"><div class="st-end-t">${esc(info.title)}</div><div>${Render.range(info.start, info.end)} · 사진 ${ctx.shown.length}장</div><div class="st-end-b">나의 여행책</div></footer></article>`;
+  // 엔딩: 밀착 인화지 (이 여행의 모든 컷을 필름처럼)
+  const all = ctx.shown;
+  const nPhoto = all.filter(p => !isVid(p)).length, nVid = all.length - nPhoto;
+  const timed = all.filter(p => p.taken);
+  const md = p => `${+p.taken.slice(5, 7)}.${+p.taken.slice(8, 10)} ${p.taken.slice(11, 16)}`;
+  const dayCount = new Set(all.map(p => App.dayKey(p)).filter(Boolean)).size;
+  const facts = [dayCount ? `${dayCount}일` : '', `사진 ${nPhoto}장`, nVid ? `영상 ${nVid}개` : '', timed.length ? `첫 컷 ${md(timed[0])}` : '', timed.length > 1 ? `마지막 컷 ${md(timed[timed.length - 1])}` : ''].filter(Boolean);
+  h += `<section class="st-contact">
+    <div class="cs-head"><span>밀착 인화지</span><span>${all.length}컷</span></div>
+    <div class="cs-strip">${all.map((p, i) => `<button class="cs-f" data-jump="${p.id}"><img ${ctx.img(p, 'thumb')} alt=""><span class="cs-n">${String(i + 1).padStart(2, '0')}${isVid(p) ? ' ▶' : ''}</span><span class="cs-t">${p.taken ? p.taken.slice(5, 10).replace('-', '.') + ' ' + p.taken.slice(11, 16) : ''}</span></button>`).join('')}</div>
+    <div class="cs-facts">${facts.map(esc).join(' · ')}</div>
+  </section>
+  <footer class="st-end"><div class="st-end-t">${esc(info.title)}</div><div>${Render.range(info.start, info.end)}${info.places.length ? ' · ' + esc(info.places.slice(0, 3).join(' · ')) : ''}</div><div class="st-end-b">나의 여행책</div></footer>
+  <div class="vf" aria-hidden="true"><span class="vf-rec"></span><span class="vf-d"></span><span class="vf-t"></span><span class="vf-p"></span></div></article>`;
   return h;
 }
 
-window.Story = { storyHTML, blocks, isHero };
+window.Story = { storyHTML, blocks, isHero, isVid, dur };
 })();

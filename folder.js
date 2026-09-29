@@ -5,7 +5,8 @@ const hasDirPicker = 'showDirectoryPicker' in window;
 const hasDirInput = (() => { const i = document.createElement('input'); return 'webkitdirectory' in i; })();
 const isAndroid = /Android/i.test(navigator.userAgent);
 const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-const IMG = /\.(jpe?g|png|heic|heif|webp)$/i;
+const IMG = /\.(jpe?g|png|heic|heif|webp|mp4|mov|m4v|webm|3gp)$/i;
+const VID = /\.(mp4|mov|m4v|webm|3gp)$/i;
 const WD = ['일', '월', '화', '수', '목', '금', '토'];
 const pad = n => String(n).padStart(2, '0');
 const localDay = ms => { const d = new Date(ms); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
@@ -127,7 +128,7 @@ function dayPicker(items) {
       const month = `${y}년 ${m}월`; const head = month !== lastMonth ? `<div class="month">${month}</div>` : ''; lastMonth = month;
       return `${head}<button class="day-row${sel.has(d) ? ' on' : ''}" data-d="${d}" aria-pressed="${sel.has(d)}">
         <span class="ck" aria-hidden="true"></span>
-        <span class="dl"><b>${m}월 ${dd}일 ${wd}요일</b><small>${list.length}장${done ? ` · ${done === list.length ? '모두 넣음' : done + '장 넣음'}` : ''}</small></span>
+        <span class="dl"><b>${m}월 ${dd}일 ${wd}요일</b><small>${list.filter(it => !VID.test(it.name)).length}장${list.some(it => VID.test(it.name)) ? ` · 영상 ${list.filter(it => VID.test(it.name)).length}` : ''}${done ? ` · ${done === list.length ? '모두 넣음' : done + '장 넣음'}` : ''}</small></span>
         <span class="th">${list.slice(0, 4).map((_, i) => `<img alt="" data-d="${d}" data-i="${i}">`).join('')}</span>
       </button>`;
     }).join('') + (days.length > shown ? `<button class="chip" id="more" style="margin:10px auto;display:block">이전 날짜 더 보기</button>` : '');
@@ -146,6 +147,7 @@ function dayPicker(items) {
     io = new IntersectionObserver(es => es.forEach(async e => {
       if (!e.isIntersecting) return; io.unobserve(e.target);
       const img = e.target; const it = byDay.get(img.dataset.d)[+img.dataset.i];
+      if (VID.test(it.name)) { img.classList.add('is-vid'); return; }
       try { const f = await getFile(it); img.src = URL.createObjectURL(f); img.onload = () => URL.revokeObjectURL(img.src); } catch { }
     }), { root: sh, rootMargin: '300px' });
     box.querySelectorAll('img[data-d]').forEach(i => io.observe(i));
