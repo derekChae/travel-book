@@ -52,7 +52,7 @@ const DB = {
   async deletePhoto(id) {
     return tx(['photos', 'blobs'], 'readwrite', t => {
       t.objectStore('photos').delete(id);
-      ['orig', 'print', 'disp', 'thumb', 'video'].forEach(k => t.objectStore('blobs').delete(id + ':' + k));
+      ['orig', 'print', 'disp', 'thumb', 'video', 'vhandle'].forEach(k => t.objectStore('blobs').delete(id + ':' + k));
     });
   },
   async getMeta(k) { return tx(['meta'], 'readonly', t => reqP(t.objectStore('meta').get(k))); },

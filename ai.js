@@ -7,7 +7,7 @@ const MAX_IMAGES = 10;
 // 편집 규칙 (하네스). HARNESS.md와 같은 내용. 사람이 하든 AI가 하든 이 규칙대로 구성한다.
 const RULES = `편집 규칙
 1. 사실만: 사진에 보이는 것, 찍은 시각, 위치 정보, 내가 쓰거나 말로 남긴 메모만 근거로 쓴다. 같이 간 사람, 먹은 것, 기분은 지어내지 않는다.
-2. 장소 찾기: 위치 정보가 없어도 장소는 편집자가 직접 찾는다. 간판·표지판 글자, 번호판 지역명, 이름난 지형과 건축물, 같은 날 앞뒤 사진의 흐름을 근거로 삼는다. 근거가 확실한 장소만 쓰고 [장소 사진 N]에 근거를 함께 적는다. 확실하지 않으면 쓰지 말고 [확인 필요]에 물어본다. 위치 정보(GPS)가 있으면 그것이 우선이다.
+2. 장소 찾기: 위치 정보가 없어도 장소는 편집자가 직접 찾는다. 간판·표지판 글자, 번호판 지역명, 이름난 지형과 건축물, 같은 날 앞뒤 사진의 흐름을 근거로 삼는다. 근거가 확실한 장소만 쓰고 [장소 사진 N]에 근거를 함께 적는다. 공식 자료로 좌표를 확인했으면 세 번째 칸에 위도,경도를 적는다(지도 동선에 쓰인다). 확실하지 않으면 쓰지 말고 [확인 필요]에 물어본다. 위치 정보(GPS)가 있으면 그것이 우선이다.
 3. 순서: 사진은 찍은 순서 그대로 둔다. 글도 시간 흐름(아침에서 저녁)을 따른다.
 4. 표지: 여행 전체를 대표하는 넓은 장면 한 장. 제목을 얹을 하늘이나 여백이 있는 사진, 사람이 작게 들어가 크기가 느껴지는 사진을 우선한다. 얼굴이 크게 나온 사진은 피한다.
 5. 화면 가득: 전체 사진의 약 5분의 1(최소 1장, 하루 2장 이하). 움직임이 핵심인 영상(눈발, 물살, 파도, 사람들의 움직임)은 우선 후보다. 규모가 큰 풍경, 사람과 풍경의 크기 대비, 그 여행에서만 볼 수 있는 결정적 장면을 고른다. 표지와 같은 사진, 연달아 두 장은 고르지 않는다.
@@ -59,7 +59,7 @@ ${RULES}
 [빼기] 사진 번호들 또는 없음
 [초점 사진 N] 위/가운데/아래 + 왼/가운데/오른 (화면 가득·표지 사진 중 주인공이 가장자리에 있을 때만)
 [나라] 나라 이름 (확실할 때만)
-[장소 사진 N] 장소 이름 | 근거 (확실한 사진만)
+[장소 사진 N] 장소 이름 | 근거 | 위도,경도 (확실한 사진만, 좌표는 확인했을 때만)
 [확인 필요] 장소를 알 수 없는 사진과 질문 (없으면 없음)
 [제목] 12자 이내
 [소개] 2문장 이내
@@ -104,8 +104,9 @@ function parseAnswer(text, d) {
     if (mk.key === '확인필요') { out.ask = /^없음/.test(val) ? null : val; return; }
     if (mk.key.startsWith('장소사진')) {
       const p = d.shown[+mk.key.replace('장소사진', '') - 1]; if (!p) return;
-      const [name, ev] = val.split('\n')[0].split('|').map(x => x.trim());
-      if (name) out.places[p.id] = { name, evidence: ev || '' }; return;
+      const [name, ev, xy] = val.split('\n')[0].split('|').map(x => x.trim());
+      const mm = (xy || '').match(/(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)/);
+      if (name) out.places[p.id] = { name, evidence: ev || '', lat: mm ? +mm[1] : null, lon: mm ? +mm[2] : null }; return;
     }
     if (mk.key === '표지') { out.cover = nums(val)[0] || null; return; }
     if (mk.key === '화면가득') { out.hero = /없음/.test(val) ? [] : nums(val); return; }
@@ -140,7 +141,7 @@ async function applyAnswer(t, r) {
     if (r.hero) { if (r.hero.includes(p.id)) { p.hero = true; if (p.layout) delete p.layout; } else { delete p.hero; if (p.layout === 'big') delete p.layout; } }
     if (r.hide) { if (r.hide.includes(p.id)) { p.hidden = true; delete p.hero; } else delete p.hidden; }
     if (r.focus[p.id]) p.focus = r.focus[p.id];
-    if (r.places[p.id] && p.lat == null) p.place = { name: r.places[p.id].name, country: r.country || (p.place && p.place.country) || null, source: 'photo', evidence: r.places[p.id].evidence };
+    if (r.places[p.id] && p.lat == null) p.place = { name: r.places[p.id].name, country: r.country || (p.place && p.place.country) || null, source: 'photo', evidence: r.places[p.id].evidence, lat: r.places[p.id].lat, lon: r.places[p.id].lon };
     if (p.id === r.cover) delete p.hidden;
     await DB.putPhoto(p);
   }

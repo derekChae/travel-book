@@ -8,7 +8,35 @@ const reduce = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 async function loadVideo(v) {
   if (v.dataset.ready) return; v.dataset.ready = '1';
   const poster = await App.urlFor(v.dataset.key); if (poster) v.poster = poster;
-  const src = await App.urlFor(v.dataset.vkey); if (src) v.src = src;
+  const src = await App.urlFor(v.dataset.vkey);
+  if (!src) { v.dataset.ready = ''; v.closest('.is-vid')?.classList.add('need-perm'); return; }
+  v.closest('.is-vid')?.classList.remove('need-perm');
+  v.src = src;
+  // 긴 영상은 고른 장면부터 6초만 반복
+  const p = App.S.photos.find(x => x.id === v.dataset.vid);
+  if (p && p.clip) {
+    const s = p.clip.start, e = s + 6;
+    v.addEventListener('loadedmetadata', () => { v.currentTime = s; }, { once: true });
+    v.addEventListener('timeupdate', () => { if (v.currentTime > e || v.currentTime < s - 0.5) v.currentTime = s; });
+  }
+}
+// 권한 다시 받기 (누를 때만 가능)
+async function withPermission(fn) { App.askPermission = true; try { return await fn(); } finally { App.askPermission = false; } }
+
+// 영상에서 장면 n개 뽑기
+async function frames(id, n = 8) {
+  const url = await withPermission(() => App.urlFor(id + ':video')); if (!url) return null;
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = url;
+  await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = rej; setTimeout(res, 10000); });
+  const d = isFinite(v.duration) && v.duration > 0 ? v.duration : 1; const out = [];
+  const draw = (max, q) => { const s = Math.min(1, max / Math.max(v.videoWidth, v.videoHeight)); const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * s); c.height = Math.round(v.videoHeight * s); c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); return new Promise(r => c.toBlob(r, 'image/jpeg', q)); };
+  for (let i = 0; i < n; i++) {
+    const t = d * (i + 0.5) / n;
+    await new Promise(res => { v.onseeked = res; v.currentTime = t; setTimeout(res, 3000); });
+    const small = await draw(480, 0.8), big = await draw(2400, 0.9);
+    out.push({ t, small, big, url: URL.createObjectURL(small), w: v.videoWidth, h: v.videoHeight });
+  }
+  return out;
 }
 
 // ----- 크게 보기 (소리와 함께) -----
@@ -19,7 +47,7 @@ function openPlayer(id, { edit } = {}) {
   el.innerHTML = `<video controls autoplay playsinline></video><div class="vp-bar"><button class="vp-close">닫기</button><span class="vp-cap">${App.esc(Render.capText(p))}</span>${edit ? '<button class="vp-edit">편집</button>' : ''}</div>`;
   document.body.appendChild(el);
   const v = el.querySelector('video');
-  App.urlFor(p.id + ':video').then(u => { v.src = u; v.play().catch(() => { }); });
+  withPermission(() => App.urlFor(p.id + ':video')).then(u => { if (!u) { el.querySelector('.vp-cap').textContent = '원본 영상을 열 수 없어요. 폰에서 지워졌거나 카메라 폴더 연결이 끊겼어요.'; return; } v.src = u; if (p.clip) v.currentTime = p.clip.start; v.play().catch(() => { }); });
   const close = () => { v.pause(); el.remove(); document.removeEventListener('keydown', key); };
   const key = e => { if (e.key === 'Escape') close(); };
   document.addEventListener('keydown', key);
@@ -30,6 +58,7 @@ function openPlayer(id, { edit } = {}) {
 
 function mount(root, { trip } = {}) {
   off(); if (!root) return;
+  if (window.RouteMap) cleanup.push(RouteMap.mount(root));
   const edit = !!root.closest('[data-trip]');
 
   // ----- 영상: 보이면 소리 없이 재생, 벗어나면 멈춤 -----
@@ -44,7 +73,12 @@ function mount(root, { trip } = {}) {
   }
   const onClick = e => {
     const b = e.target.closest('[data-play]') || e.target.closest('video.st-v');
-    if (b) { e.preventDefault(); e.stopPropagation(); openPlayer(b.dataset.play || b.dataset.vid, { edit }); return; }
+    if (b) {
+      e.preventDefault(); e.stopPropagation();
+      const box = b.closest('.is-vid');
+      if (box && box.classList.contains('need-perm')) { withPermission(async () => { const v = box.querySelector('video.st-v'); v.dataset.ready = ''; await loadVideo(v); if (v.src) v.play().catch(() => { }); }); return; }
+      openPlayer(b.dataset.play || b.dataset.vid, { edit }); return;
+    }
     const j = e.target.closest('[data-jump]');
     if (j) {
       const t = root.querySelector(`[data-m="${j.dataset.jump}"]`);
@@ -70,7 +104,7 @@ function mount(root, { trip } = {}) {
   // ----- 뷰파인더 + 배경색 -----
   const vf = root.querySelector('.vf');
   const medias = () => [...root.querySelectorAll('[data-m]')];
-  const blockers = [...root.querySelectorAll('.st-text, .st-day, .st-contact, .st-end, .st-cover-tx, .st-hint, figcaption, .st-full-cap, .st-badge, .st-play, .st-vtag')];
+  const blockers = [...root.querySelectorAll('.st-map, .st-text, .st-day, .st-contact, .st-end, .st-cover-tx, .st-hint, figcaption, .st-full-cap, .st-badge, .st-play, .st-vtag')];
   const coverTone = root.querySelector('.st-cover')?.dataset.tone;
   const setTone = t => { if (t) root.style.setProperty('--amb', t.split(',').join(' ')); };
   setTone(coverTone);
@@ -96,18 +130,24 @@ function mount(root, { trip } = {}) {
       }
       // 글·버튼과 겹치면 숨김
       vf.classList.add('on');
-      const r = vf.getBoundingClientRect();
+      // 움직이는 중이어도 도착할 자리로 검사
+      const cur0 = vf.getBoundingClientRect(); const safe = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-b')) || 0;
+      const bottom = innerHeight - (document.body.classList.contains('chrome-hidden') ? 18 : 84) - safe;
+      const r = { left: cur0.left, right: cur0.right, top: bottom - cur0.height - 6, bottom: bottom + 6 };
       const dock = document.querySelector('.fdock');
       const top = document.getElementById('top');
       if (blockers.some(b => hit(r, b.getBoundingClientRect())) || (dock && hit(r, dock.getBoundingClientRect())) || (top && hit(r, top.getBoundingClientRect()))) show = false;
     }
     vf.classList.toggle('on', show);
   };
-  const on = () => { if (!raf) raf = requestAnimationFrame(fx); };
+  let settle = 0;
+  const on = () => { if (!raf) raf = requestAnimationFrame(fx); clearTimeout(settle); settle = setTimeout(fx, 340); };
   window.addEventListener('scroll', on, { passive: true }); window.addEventListener('resize', on);
-  cleanup.push(() => { window.removeEventListener('scroll', on); window.removeEventListener('resize', on); if (raf) cancelAnimationFrame(raf); });
+  const onEnd = () => on(); vf && vf.addEventListener('transitionend', onEnd);
+  const mo = new MutationObserver(on); mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+  cleanup.push(() => { window.removeEventListener('scroll', on); window.removeEventListener('resize', on); vf && vf.removeEventListener('transitionend', onEnd); mo.disconnect(); clearTimeout(settle); if (raf) cancelAnimationFrame(raf); });
   fx();
 }
 
-window.Motion = { mount, off, openPlayer };
+window.Motion = { mount, off, openPlayer, frames };
 })();

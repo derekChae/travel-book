@@ -190,3 +190,9 @@ body.is-home.chrome-hidden .top { transform: none; }
 body.chrome-hidden .fdock { transform: translate(-50%, 140%); }
 body.is-story .st-cover-tx { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
 @media (prefers-reduced-motion: reduce) { body.is-story .top, .fdock { transition: none; } }
+
+.vstrip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-top: 8px; }
+.vstrip button { position: relative; padding: 0; border: 2px solid transparent; border-radius: 6px; background: #ddd; overflow: hidden; }
+.vstrip button.on { border-color: var(--ink); }
+.vstrip img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
+.vstrip span { position: absolute; right: 4px; bottom: 3px; font-size: 10.5px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }

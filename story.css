@@ -125,3 +125,30 @@ body:not(.chrome-hidden) .vf { bottom: calc(84px + env(safe-area-inset-bottom, 0
   .st-cover-img, .st-full > img, .st-full > video { animation: none !important; }
   .st, .vf { transition: none; }
 }
+
+/* 원본 영상 권한이 필요할 때 */
+.is-vid.need-perm .st-play::after { content: " · 눌러서 연결"; font-weight: 500; }
+
+/* 지도 동선 */
+.st-map { margin: 8px 0 6px; }
+.mp-box { position: relative; height: min(78vh, 720px); min-height: 380px; overflow: hidden; background: #e9e7e2; }
+.mp-tiles img { position: absolute; width: 256px; height: 256px; filter: grayscale(1) contrast(.92) brightness(1.06); opacity: .85; }
+.mp-svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.mp-halo { fill: none; stroke: rgba(255,255,255,.9); stroke-width: 9; stroke-linecap: round; stroke-linejoin: round; }
+.mp-line { fill: none; stroke: #ff3b30; stroke-width: 4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; }
+.st-map.in .mp-line { transition: stroke-dashoffset 2.2s cubic-bezier(.45,0,.2,1) .2s; stroke-dashoffset: 0; }
+.mp-dot { position: absolute; transform: translate(-50%, -50%) scale(0); min-width: 26px; height: 26px; padding: 0 6px; border-radius: 13px; background: #151515; color: #fff; border: 2px solid #fff; display: grid; place-items: center; font: 700 12px/1 "SUIT Variable", sans-serif; box-shadow: 0 2px 8px rgba(0,0,0,.3); }
+.mp-dot.first { background: #ff3b30; }
+.st-map.in .mp-dot { transform: translate(-50%, -50%) scale(1); transition: transform .45s cubic-bezier(.34,1.56,.64,1) calc(.3s + var(--k) * .35s); }
+.mp-attr { position: absolute; right: 8px; bottom: 6px; font: 500 10px "SUIT Variable", sans-serif; color: #555; background: rgba(255,255,255,.75); padding: 2px 6px; border-radius: 4px; }
+.mp-cap { max-width: 620px; margin: 0 auto; padding: 18px 24px 30px; }
+.mp-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; align-items: baseline; margin-bottom: 12px; }
+.mp-head b { font-family: var(--st-bold); font-size: 20px; letter-spacing: -0.02em; }
+.mp-head span { font: 500 12.5px "SUIT Variable", sans-serif; color: #7a766f; }
+.mp-legend { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font: 500 15px "SUIT Variable", sans-serif; }
+.mp-legend li { display: flex; align-items: center; gap: 10px; }
+.mp-n { flex: 0 0 auto; width: 22px; height: 22px; border-radius: 50%; background: #151515; color: #fff; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; }
+.mp-legend li:first-child .mp-n { background: #ff3b30; }
+.mp-t { color: #7a766f; font-variant-numeric: tabular-nums; min-width: 44px; }
+@media (prefers-reduced-motion: reduce) { .mp-line { stroke-dashoffset: 0 !important; transition: none !important; } .mp-dot { transform: translate(-50%, -50%) !important; transition: none !important; } }
+.vf:not(.on) { transition: none; }

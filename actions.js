@@ -54,6 +54,7 @@ async function importFiles(files) {
   let lock = null; try { lock = await navigator.wakeLock?.request('screen'); } catch { }
   const existing = new Set(S.photos.map(p => p.sig));
   const newPhotos = [], failed = [], skipped = [];
+  let copiedBytes = 0;
   // 영상은 시간대 정보가 없어서, 같이 넣은 사진들의 시간대를 빌려 씀
   const offsetGuess = () => { const c = {}; [...S.photos, ...newPhotos, ...batch].forEach(p => { if (p.offset && p.kind !== 'video') c[p.offset] = (c[p.offset] || 0) + 1; }); return Object.keys(c).sort((x, y) => c[y] - c[x])[0] || null; };
   const touched = new Set(), created = [];
@@ -85,7 +86,13 @@ async function importFiles(files) {
           taken: info.taken, offset: info.offset, timeSource: info.timeSource, lat: info.lat, lon: info.lon,
           place, camera: info.camera, w: im.w, h: im.h, note: '', fileName: f.name, size: f.size, type: f.type, sig, addedSeq: Date.now() + (seq++), addedAt: new Date().toISOString() });
         blobs.push([id + ':print', im.print], [id + ':disp', im.disp], [id + ':thumb', im.thumb]);
-        if (vid) blobs.push([id + ':video', f]);
+        if (vid) {
+          // 폴더에서 넣은 영상은 원본을 가리키기만 함 (폰 저장 공간을 쓰지 않음). 직접 고른 영상은 복사.
+          if (f._handle) blobs.push([id + ':vhandle', f._handle]);
+          else { blobs.push([id + ':video', f]); copiedBytes += f.size; }
+          const last = batch[batch.length - 1]; last.videoRef = !!f._handle;
+          if (im.duration > 12) last.clip = { start: +Math.max(0, Math.min(im.duration * 0.3, im.duration - 6)).toFixed(2) };
+        }
         existing.add(sig);
       } catch (e) { console.warn(e); failed.push(f.name); }
       if (batch.length >= 12) await flushBatch();
@@ -110,6 +117,7 @@ async function importFiles(files) {
       ${skipped.length ? `<li>이미 들어 있는 사진 ${skipped.length}장은 건너뛰었어요</li>` : ''}
       ${failed.length ? `<li>열 수 없는 파일 ${failed.length}장: ${esc(failed.slice(0, 3).join(', '))}${failed.length > 3 ? ' 외' : ''}</li>` : ''}
     </ul>
+    ${copiedBytes > 150e6 ? `<div class="tip"><b>영상 ${(copiedBytes / 1e9).toFixed(1)}GB를 이 폰 저장 공간에 복사했어요.</b> 긴 영상은 <b>날짜로 사진 넣기</b>(카메라 폴더 연결)로 넣으면 원본을 그대로 가리켜서 공간을 쓰지 않아요.</div>` : ''}
     ${noTime ? `<div class="tip"><b>찍은 날짜가 없는 사진 ${noTime}장</b>은 '날짜 모르는 사진'에 모아뒀어요. 사진을 눌러 날짜를 넣을 수 있어요.</div>` : ''}
     ${newPhotos.length && noGps ? `<div class="tip"><b>위치 정보가 없는 사진 ${noGps}장</b>은 장소 없이 넣었어요.<br>
       ${isAndroid ? '갤럭시라면 카메라 앱 → 설정 → <b>위치 태그</b>를 켜 두면 다음부터 장소도 자동으로 들어가요. 카카오톡 등으로 주고받은 사진은 위치가 빠져 있을 수 있어요.'
@@ -130,7 +138,10 @@ async function openPhoto(id) {
   const size = (p.hero || p.layout === 'big') ? 'big' : (p.layout || 'auto');
   const sh = openSheet(`
     <div class="focus-wrap"><img class="sheet-photo" id="fp-img" alt="" src="${await urlFor(p.id + ':disp')}"><span class="focus-dot" id="fp-dot" hidden></span></div>
-    ${p.kind === 'video' ? `<button class="chip" id="fp-play" style="margin-top:8px">영상 재생 · ${Story.dur(p.duration)}</button>` : ''}
+    ${p.kind === 'video' ? `<button class="chip" id="fp-play" style="margin-top:8px">영상 재생 · ${Story.dur(p.duration)}</button>
+      <div class="seg-label">장면 고르기 · 누르면 그 장면부터 미리보기가 돌고 대표 장면이 돼요</div>
+      <div class="vstrip" id="vstrip"><span class="saved">장면 불러오는 중…</span></div>
+      <div class="sheet-actions" style="margin-top:8px"><button id="v-still" disabled>이 장면을 사진으로 넣기</button></div>` : ''}
     <div class="saved" id="fp-help" hidden>화면을 꽉 채우면 가장자리가 잘려요. 사진에서 꼭 보여야 할 곳을 눌러 주세요.</div>
     <dl class="facts">
       <dt>찍은 때</dt><dd>${when ? esc(when) : '<span class="unknown">사진에 날짜 정보가 없어요</span>'}</dd>
@@ -154,6 +165,28 @@ async function openPhoto(id) {
   const flush = autosave(ta, async v => { if (p._gone) return; p.note = v.trim(); await DB.putPhoto(p); }, $('#note-st', sh));
   // 화면 가득/표지일 때: 꼭 보여야 할 곳 누르기
   $('#fp-play', sh)?.addEventListener('click', () => { closeSheet(true); Motion.openPlayer(p.id); });
+  if (p.kind === 'video') (async () => {
+    const box = $('#vstrip', sh), still = $('#v-still', sh);
+    const frames = await Motion.frames(p.id, 8);
+    if (!frames) { box.innerHTML = '<span class="saved">원본 영상을 열 수 없어요. 카메라 폴더를 다시 연결해 주세요.</span>'; return; }
+    const cur = p.clip ? p.clip.start : 0; let picked = null;
+    box.innerHTML = frames.map((fr, i) => `<button data-fi="${i}" class="${Math.abs(fr.t - cur) < (p.duration / 16) ? 'on' : ''}"><img src="${fr.url}" alt=""><span>${Story.dur(fr.t)}</span></button>`).join('');
+    box.addEventListener('click', async e => {
+      const b = e.target.closest('[data-fi]'); if (!b) return; const fr = frames[+b.dataset.fi]; picked = fr;
+      box.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); still.disabled = false;
+      p.clip = { start: +Math.max(0, Math.min(fr.t, (p.duration || 6) - 6)).toFixed(2) };
+      await DB.saveImport({ trips: [], photos: [p], blobs: [[p.id + ':print', fr.big], [p.id + ':disp', fr.big], [p.id + ':thumb', fr.small]] });
+      ['print', 'disp', 'thumb'].forEach(k => App.S.urls.delete(p.id + ':' + k));
+      $('#note-st', sh).textContent = `${Story.dur(fr.t)} 장면부터 보여줄게요`;
+    });
+    still.addEventListener('click', async () => {
+      if (!picked) return;
+      const id = uid(); const base = p.taken ? Date.parse(p.taken + 'Z') + Math.round(picked.t * 1000) : null;
+      const np = { id, tripId: p.tripId, kind: 'photo', taken: base ? new Date(base).toISOString().slice(0, 19) : null, offset: p.offset, timeSource: 'video-frame', lat: p.lat, lon: p.lon, place: p.place, w: picked.w, h: picked.h, note: '', fileName: `${p.fileName}#t=${picked.t.toFixed(1)}`, sig: `${p.id}#${picked.t.toFixed(1)}`, tone: p.tone, addedSeq: Date.now(), addedAt: new Date().toISOString() };
+      await DB.saveImport({ trips: [], photos: [np], blobs: [[id + ':print', picked.big], [id + ':disp', picked.big], [id + ':thumb', picked.small]] });
+      S.photos.push(np); $('#note-st', sh).textContent = '이 장면을 사진으로 넣었어요';
+    });
+  })();
   const fImg = $('#fp-img', sh), fDot = $('#fp-dot', sh), fHelp = $('#fp-help', sh);
   const isBig = () => !!(p.hero || p.layout === 'big' || (t.coverId ? t.coverId === p.id : plan.cover && plan.cover.id === p.id));
   const placeDot = () => {

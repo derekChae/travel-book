@@ -58,6 +58,14 @@ function bookCtx(t, { edit = false, img } = {}) {
 async function urlFor(key) {
   if (S.urls.has(key)) return S.urls.get(key);
   let b = await DB.getBlob(key);
+  if (!b && key.endsWith(':video')) {
+    // 원본을 가리키는 영상: 권한이 있으면 폰 갤러리의 파일을 바로 엶
+    const h = await DB.getBlob(key.replace(':video', ':vhandle'));
+    if (h && h.getFile) {
+      try { let perm = h.queryPermission ? await h.queryPermission({ mode: 'read' }) : 'granted'; if (perm !== 'granted' && App.askPermission && h.requestPermission) perm = await h.requestPermission({ mode: 'read' }); if (perm === 'granted') b = await h.getFile(); } catch { }
+    }
+    if (!b) return '';
+  }
   if (!b && key.endsWith(':print')) b = (await DB.getBlob(key.replace(':print', ':orig'))) || (await DB.getBlob(key.replace(':print', ':disp')));
   if (!b && key.endsWith(':disp')) b = await DB.getBlob(key.replace(':disp', ':thumb'));
   if (!b) return '';

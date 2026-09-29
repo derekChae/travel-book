@@ -161,7 +161,7 @@ function dayPicker(items) {
     const pick = [...sel].flatMap(d => byDay.get(d)).filter(it => !have.has(it.name));
     go.disabled = true; go.textContent = '준비 중…';
     const files = [];
-    for (const it of pick) { try { files.push(await getFile(it)); } catch { } }
+    for (const it of pick) { try { const f = await getFile(it); if (it.handle) f._handle = it.handle; files.push(f); } catch { } }
     App.closeSheet(true);
     Actions.importFiles(files);
   });
