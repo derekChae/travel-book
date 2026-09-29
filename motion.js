@@ -104,7 +104,7 @@ function openPlayer(id, { edit } = {}) {
 
 function mount(root, { trip } = {}) {
   off(); if (!root) return;
-  if (window.RouteMap) cleanup.push(RouteMap.mount(root));
+  if (window.Fly) cleanup.push(Fly.mount(root));
   const ambBtn = document.querySelector('[data-act="amb"]');
   const setBtn = () => { if (ambBtn) { ambBtn.setAttribute('aria-pressed', amb.on); ambBtn.textContent = amb.on ? '현장음 끄기' : '현장음'; } };
   setBtn();
@@ -157,7 +157,7 @@ function mount(root, { trip } = {}) {
   const vf = root.querySelector('.vf');
   if (vf && !vf.querySelector('.vf-snd')) vf.insertAdjacentHTML('beforeend', '<span class="vf-snd" aria-hidden="true"><i></i><i></i><i></i></span>');
   const medias = () => [...root.querySelectorAll('[data-m]')];
-  const blockers = [...root.querySelectorAll('.st-map, .st-text, .st-day, .st-contact, .st-end, .st-cover-tx, .st-hint, figcaption, .st-full-cap, .st-badge, .st-play, .st-vtag')];
+  const blockers = [...root.querySelectorAll('.st-fly, .st-map, .st-text, .st-day, .st-contact, .st-end, .st-cover-tx, .st-hint, figcaption, .st-full-cap, .st-badge, .st-play, .st-vtag')];
   const coverTone = root.querySelector('.st-cover')?.dataset.tone;
   const setTone = t => { if (t) root.style.setProperty('--amb', t.split(',').join(' ')); };
   setTone(coverTone);

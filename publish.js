@@ -34,13 +34,13 @@ async function bookPage(t, onProgress) {
   const { sctx: ro } = App.storyCtx(t, { edit: false, img: (p, role) => `src="${role === 'thumb' ? small.get(p.id) : urls.get(p.id)}"` });
   ro.videos = false; // 발행본에는 영상 대신 대표 장면을 넣음
   const css = await (await fetch('story.css')).text();
-  const mapJs = (await (await fetch('map.js')).text()).replace(/<\/script/gi, '<\\/script');
+  const mapJs = ((await (await fetch('map.js')).text()) + '\n' + (await (await fetch('fly.js')).text())).replace(/<\/script/gi, '<\\/script');
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"><meta name="robots" content="noindex">
 <title>${esc(info.title)}</title>
 <link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css">
 <style>html,body{margin:0;background:#fbfaf7}${css}</style></head>
-<body>${Story.storyHTML(ro).replace(/<div class="vf"[\s\S]*?<\/div><\/article>/, '</article>')}<script>${mapJs}\nRouteMap.mount(document.body);<\/script><script>document.addEventListener('click',e=>{const j=e.target.closest('[data-jump]');if(!j)return;const t=document.querySelector('[data-m="'+j.dataset.jump+'"]');window.scrollTo({top:t?t.getBoundingClientRect().top+scrollY-40:0,behavior:'smooth'});});<\/script></body></html>`;
+<body>${Story.storyHTML(ro).replace(/<div class="vf"[\s\S]*?<\/div><\/article>/, '</article>')}<script>${mapJs}\nFly.mount(document.body);<\/script><script>document.addEventListener('click',e=>{const j=e.target.closest('[data-jump]');if(!j)return;const t=document.querySelector('[data-m="'+j.dataset.jump+'"]');window.scrollTo({top:t?t.getBoundingClientRect().top+scrollY-40:0,behavior:'smooth'});});<\/script></body></html>`;
 }
 
 function lockedPage(cipher) {

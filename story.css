@@ -161,3 +161,46 @@ body:not(.chrome-hidden) .vf { bottom: calc(84px + env(safe-area-inset-bottom, 0
 @keyframes eq { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
 .vf-snd i { transform-origin: bottom; }
 @media (prefers-reduced-motion: reduce) { .vf-snd i { animation: none; } }
+
+/* ===== 동선 비행 ===== */
+.st-fly { position: relative; margin: 0 0 6px; background: #0b0f16; }
+.fly-sticky { position: sticky; top: 0; height: 100vh; height: 100svh; overflow: hidden; }
+.st-fly .fly-map, .st-fly .fly-map.maplibregl-map { position: absolute; inset: 0; width: 100%; height: 100%; }
+.st-fly[data-mode="light"] { background: #eef0f2; }
+.fly-steps { position: relative; margin-top: -100svh; pointer-events: none; }
+.fly-step { height: 90svh; }
+.fly-step:first-child { height: 100svh; }
+.fly-top { position: absolute; left: 0; right: 0; top: calc(64px + env(safe-area-inset-top, 0px)); z-index: 3; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; padding: 0 18px; pointer-events: none; color: #fff; text-shadow: 0 1px 10px rgba(0,0,0,.45); }
+.st-fly[data-mode="light"] .fly-top { color: #141414; text-shadow: 0 1px 8px rgba(255,255,255,.8); }
+.fly-k { font: 700 11.5px "SUIT Variable", sans-serif; letter-spacing: .14em; opacity: .85; margin-bottom: 6px; }
+.fly-t { font-family: var(--st-bold); font-size: clamp(26px, 6vw, 44px); line-height: 1.1; letter-spacing: -0.035em; }
+.fly-d { font: 500 13px "SUIT Variable", sans-serif; opacity: .85; margin-top: 6px; }
+.fly-mode { pointer-events: auto; display: flex; gap: 2px; padding: 3px; border-radius: 999px; background: rgba(0,0,0,.45); flex: 0 0 auto; }
+.st-fly[data-mode="light"] .fly-mode { background: rgba(255,255,255,.85); box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+.fly-mode button { height: 30px; padding: 0 13px; border: 0; border-radius: 999px; background: transparent; color: inherit; font: 600 13px "SUIT Variable", sans-serif; text-shadow: none; cursor: pointer; }
+.fly-mode button[aria-pressed="true"] { background: #ff3b30; color: #fff; }
+.fly-card { position: absolute; left: 16px; bottom: calc(104px + env(safe-area-inset-bottom, 0px)); z-index: 3; max-width: calc(100% - 84px) !important; display: flex; align-items: center; gap: 14px; padding: 12px 18px 12px 14px; border-radius: 16px; background: rgba(12,12,12,.72); color: #fff; max-width: calc(100% - 32px); opacity: 0; transform: translateY(14px); transition: opacity .4s, transform .5s cubic-bezier(.22,1,.36,1); pointer-events: none; }
+.fly-card.on { opacity: 1; transform: none; }
+.st-fly[data-mode="light"] .fly-card { background: rgba(255,255,255,.94); color: #141414; box-shadow: 0 10px 30px -10px rgba(0,0,0,.3); }
+.fc-n { font-family: var(--st-bold); font-size: 34px; line-height: 1; letter-spacing: -0.04em; color: #ff3b30; }
+.fc-n small { font: 600 12px "SUIT Variable", sans-serif; color: inherit; opacity: .6; margin-left: 2px; letter-spacing: 0; }
+.fc-b { display: grid; min-width: 0; }
+.fc-b b { font-family: var(--st-bold); font-size: 20px; letter-spacing: -0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fc-b span { font: 500 13px "SUIT Variable", sans-serif; opacity: .75; font-variant-numeric: tabular-nums; }
+.fly-dot { width: 20px; height: 20px; border-radius: 50%; background: #141414; color: #fff; border: 2px solid #fff; display: grid; place-items: center; font: 700 10.5px/1 "SUIT Variable", sans-serif; box-shadow: 0 2px 6px rgba(0,0,0,.35); }
+.fly-pin .fp-in { display: flex; flex-direction: column; align-items: center; opacity: 0; transform-origin: 50% 100%; }
+.fly-pin img { width: 68px; height: 68px; border-radius: 50%; object-fit: cover; border: 3px solid #fff; box-shadow: 0 8px 24px rgba(0,0,0,.45); background: #333; }
+.fly-pin .fp-in::after { content: ""; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 10px solid #fff; margin-top: -1px; }
+.fly-pin span { display: none; }
+.fly-pin.on .fp-in { animation: pinIn .7s cubic-bezier(.34,1.56,.64,1) .5s both; }
+@keyframes pinIn { from { opacity: 0; transform: translateY(12px) scale(.6); } to { opacity: 1; transform: none; } }
+.st-fly .maplibregl-ctrl-bottom-right { bottom: calc(96px + env(safe-area-inset-bottom, 0px)); }
+.st-fly .maplibregl-ctrl-attrib { font: 10px "SUIT Variable", sans-serif; }
+.st-fly.no-map .fly-sticky { display: none; }
+.st-fly.no-map .fly-steps { margin: 0; } .st-fly.no-map .fly-step { display: none; }
+@media (min-width: 900px) {
+  .fly-top { padding: 0 40px; }
+  .fly-card { left: 40px; bottom: 110px; }
+  .fly-pin img { width: 84px; height: 84px; }
+}
+@media (prefers-reduced-motion: reduce) { .fly-pin.on .fp-in { animation: none; opacity: 1; } .fly-card { transition: none; } }
