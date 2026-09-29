@@ -152,3 +152,12 @@ body:not(.chrome-hidden) .vf { bottom: calc(84px + env(safe-area-inset-bottom, 0
 .mp-t { color: #7a766f; font-variant-numeric: tabular-nums; min-width: 44px; }
 @media (prefers-reduced-motion: reduce) { .mp-line { stroke-dashoffset: 0 !important; transition: none !important; } .mp-dot { transform: translate(-50%, -50%) !important; transition: none !important; } }
 .vf:not(.on) { transition: none; }
+
+/* 현장음 표시 */
+.vf-snd { display: none; align-items: flex-end; gap: 2px; height: 11px; }
+.vf.snd .vf-snd { display: inline-flex; }
+.vf-snd i { width: 2px; height: 100%; background: #fff; border-radius: 1px; animation: eq 1s ease-in-out infinite; }
+.vf-snd i:nth-child(2) { animation-delay: -.35s; } .vf-snd i:nth-child(3) { animation-delay: -.7s; }
+@keyframes eq { 0%, 100% { transform: scaleY(.35); } 50% { transform: scaleY(1); } }
+.vf-snd i { transform-origin: bottom; }
+@media (prefers-reduced-motion: reduce) { .vf-snd i { animation: none; } }

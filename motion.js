@@ -39,6 +39,51 @@ async function frames(id, n = 8) {
   return out;
 }
 
+
+// ----- 현장음: 영상에서 소리만 꺼내, 가까운 시간의 사진을 볼 때 은은하게 -----
+const AMB_VOL = 0.35;
+const amb = { on: false, players: new Map(), want: null, raf: 0 };
+function ambSource(el) {
+  if (!el) return null;
+  const p = App.S.photos.find(x => x.id === el.dataset.m); if (!p) return null;
+  if (p.kind === 'video') return p.id;
+  if (!p.taken) return null;
+  const t = Meta.absTime(p), day = App.dayKey(p);
+  let best = null, bd = Infinity;
+  for (const v of App.S.photos) {
+    if (v.kind !== 'video' || v.tripId !== p.tripId || !v.taken || App.dayKey(v) !== day) continue;
+    const dd = Math.abs(Meta.absTime(v) - t); if (dd < bd) { bd = dd; best = v; }
+  }
+  return best && bd <= 2 * 3600e3 ? best.id : null;
+}
+async function ambPlayer(id) {
+  if (amb.players.has(id)) return amb.players.get(id);
+  const a = new Audio(); a.loop = true; a.preload = 'auto'; a.volume = 0;
+  const rec = { a, target: 0, ready: false }; amb.players.set(id, rec);
+  const u = await App.urlFor(id + ':video'); if (!u) return rec;
+  a.src = u; const p = App.S.photos.find(x => x.id === id);
+  a.addEventListener('loadedmetadata', () => { if (p && p.clip) a.currentTime = p.clip.start; }, { once: true });
+  rec.ready = true; return rec;
+}
+function ambTick() {
+  amb.raf = 0; let moving = false;
+  for (const [, r] of amb.players) {
+    const d = r.target - r.a.volume;
+    if (Math.abs(d) > 0.01) { r.a.volume = Math.max(0, Math.min(1, r.a.volume + Math.sign(d) * 0.02)); moving = true; }
+    else { r.a.volume = r.target; if (r.target === 0 && !r.a.paused) r.a.pause(); }
+  }
+  if (moving) amb.raf = requestAnimationFrame(ambTick);
+}
+async function ambSet(id) {
+  if (!amb.on || document.querySelector('.vplayer')) id = null;
+  if (id === amb.want) return; amb.want = id;
+  for (const [k, r] of amb.players) if (k !== id) r.target = 0;
+  if (id) { const r = await ambPlayer(id); if (amb.want !== id) return; r.target = AMB_VOL; if (r.ready && r.a.paused) r.a.play().catch(() => { }); }
+  document.querySelectorAll('.vf').forEach(v => v.classList.toggle('snd', !!id));
+  if (!amb.raf) amb.raf = requestAnimationFrame(ambTick);
+}
+function ambStop() { amb.want = null; for (const [, r] of amb.players) { r.a.pause(); r.a.removeAttribute('src'); } amb.players.clear(); }
+
 // ----- 크게 보기 (소리와 함께) -----
 function openPlayer(id, { edit } = {}) {
   const p = App.S.photos.find(x => x.id === id); if (!p) return;
@@ -48,7 +93,8 @@ function openPlayer(id, { edit } = {}) {
   document.body.appendChild(el);
   const v = el.querySelector('video');
   withPermission(() => App.urlFor(p.id + ':video')).then(u => { if (!u) { el.querySelector('.vp-cap').textContent = '원본 영상을 열 수 없어요. 폰에서 지워졌거나 카메라 폴더 연결이 끊겼어요.'; return; } v.src = u; if (p.clip) v.currentTime = p.clip.start; v.play().catch(() => { }); });
-  const close = () => { v.pause(); el.remove(); document.removeEventListener('keydown', key); };
+  ambSet(null);
+  const close = () => { v.pause(); el.remove(); document.removeEventListener('keydown', key); window.dispatchEvent(new Event('scroll')); };
   const key = e => { if (e.key === 'Escape') close(); };
   document.addEventListener('keydown', key);
   el.querySelector('.vp-close').addEventListener('click', close);
@@ -59,6 +105,12 @@ function openPlayer(id, { edit } = {}) {
 function mount(root, { trip } = {}) {
   off(); if (!root) return;
   if (window.RouteMap) cleanup.push(RouteMap.mount(root));
+  const ambBtn = document.querySelector('[data-act="amb"]');
+  const setBtn = () => { if (ambBtn) { ambBtn.setAttribute('aria-pressed', amb.on); ambBtn.textContent = amb.on ? '현장음 끄기' : '현장음'; } };
+  setBtn();
+  const onAmb = e => { if (!e.target.closest('[data-act="amb"]')) return; amb.on = !amb.on; setBtn(); if (amb.on) { App.toast('현장음을 켰어요. 영상에서 가져온 소리가 가까운 시간의 사진에 흘러요.', 3500); window.dispatchEvent(new Event('scroll')); } else ambSet(null); };
+  document.addEventListener('click', onAmb);
+  cleanup.push(() => { document.removeEventListener('click', onAmb); ambStop(); });
   const edit = !!root.closest('[data-trip]');
 
   // ----- 영상: 보이면 소리 없이 재생, 벗어나면 멈춤 -----
@@ -103,6 +155,7 @@ function mount(root, { trip } = {}) {
 
   // ----- 뷰파인더 + 배경색 -----
   const vf = root.querySelector('.vf');
+  if (vf && !vf.querySelector('.vf-snd')) vf.insertAdjacentHTML('beforeend', '<span class="vf-snd" aria-hidden="true"><i></i><i></i><i></i></span>');
   const medias = () => [...root.querySelectorAll('[data-m]')];
   const blockers = [...root.querySelectorAll('.st-map, .st-text, .st-day, .st-contact, .st-end, .st-cover-tx, .st-hint, figcaption, .st-full-cap, .st-badge, .st-play, .st-vtag')];
   const coverTone = root.querySelector('.st-cover')?.dataset.tone;
@@ -116,6 +169,7 @@ function mount(root, { trip } = {}) {
     let cur = null, lastAbove = null;
     for (const m of medias()) { const r = m.getBoundingClientRect(); if (r.top < cy) lastAbove = m; if (r.top <= cy && r.bottom >= cy) cur = m; }
     setTone((lastAbove && lastAbove.dataset.tone) || coverTone);
+    if (amb.on) { const endR = root.querySelector('.st-contact')?.getBoundingClientRect(); ambSet(endR && endR.top < cy ? null : ambSource(cur || lastAbove)); }
     if (!vf) return;
     let show = !!(cur && (cur.dataset.t || cur.dataset.pl));
     if (show) {
@@ -149,5 +203,5 @@ function mount(root, { trip } = {}) {
   fx();
 }
 
-window.Motion = { mount, off, openPlayer, frames };
+window.Motion = { mount, off, openPlayer, frames, amb, ambSource };
 })();
