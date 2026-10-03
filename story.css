@@ -238,3 +238,21 @@ body.is-story:not(.chrome-hidden) .rt-mapcol { top: 52px; }
   .fly-pin img { width: 64px; height: 64px; }
 }
 @media (prefers-reduced-motion: reduce) { .fly-pin.on .fp-in { animation: none; opacity: 1; } .rt-stop { transition: none; } }
+
+/* 미니 지도 누르기 → 전체 동선 */
+.vf.on.has-map { pointer-events: auto; cursor: pointer; }
+.vf.has-map .vf-map::after { content: ""; position: absolute; right: 3px; bottom: 3px; width: 11px; height: 11px; border-radius: 50%; background: #151515 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M4 2h6v6M10 2 3 9' stroke='white' stroke-width='1.6' fill='none'/%3E%3C/svg%3E") center / 7px no-repeat; z-index: 3; }
+.vf.on.has-map:active { transform: scale(.97); }
+html.mv-open, html.mv-open body { overflow: hidden; }
+.mapview { position: fixed; inset: 0; z-index: 70; overflow-y: auto; overscroll-behavior: contain; background: #fbfaf7; animation: mvUp .35s cubic-bezier(.22,1,.36,1); }
+@keyframes mvUp { from { opacity: 0; transform: translateY(24px); } }
+.mv-bar { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; height: 54px; padding: 0 12px 0 20px; background: #fbfaf7; border-bottom: 1px solid rgba(0,0,0,.08); font: 600 14px "SUIT Variable", sans-serif; }
+.mv-close { height: 38px; padding: 0 16px; border: 1px solid #d9d4ca; border-radius: 999px; background: #fff; font: 600 14px "SUIT Variable", sans-serif; cursor: pointer; }
+.mapview .st-route { padding-top: 28px; }
+.mapview .rt-mapcol, body.is-story:not(.chrome-hidden) .mapview .rt-mapcol { top: 54px; }
+.mapview .rt-sticky { height: 40svh; }
+@media (min-width: 900px) {
+  .mapview .rt-mapcol, body.is-story:not(.chrome-hidden) .mapview .rt-mapcol { top: auto; }
+  .mapview .rt-sticky { top: 78px; height: calc(100vh - 110px); }
+}
+@media (prefers-reduced-motion: reduce) { .mapview { animation: none; } }

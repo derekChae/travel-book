@@ -234,8 +234,8 @@ function mount(root) {
     pick();
   };
   root.addEventListener('click', onMode);
-  window.addEventListener('scroll', on, { passive: true });
-  cleanup.push(() => { alive = false; io.disconnect(); window.removeEventListener('scroll', on); root.removeEventListener('click', onMode); secs.forEach(s => { if (s._fly) { cancelAnimationFrame(s._fly.raf); cancelAnimationFrame(s._fly.cam || 0); s._fly.map.remove(); s._fly = null; } }); });
+  window.addEventListener('scroll', on, { passive: true, capture: true });
+  cleanup.push(() => { alive = false; io.disconnect(); window.removeEventListener('scroll', on, { capture: true }); root.removeEventListener('click', onMode); secs.forEach(s => { if (s._fly) { cancelAnimationFrame(s._fly.raf); cancelAnimationFrame(s._fly.cam || 0); s._fly.map.remove(); s._fly = null; } }); });
   return () => cleanup.forEach(f => f());
 }
 

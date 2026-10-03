@@ -142,6 +142,32 @@ function miniMap(root, vf) {
   return { go, destroy: () => { cancelAnimationFrame(st.raf); st.map && st.map.remove(); } };
 }
 
+
+// ----- 작은 지도를 누르면: 전체 동선 (일정표 + 지도) -----
+function openRouteView(trip, focusId) {
+  const ps = App.tripPhotos(trip.id).filter(p => !p.hidden);
+  const stops = RouteMap.stops(ps); if (stops.length < 1) return;
+  const BLANK = App.BLANK;
+  const byId = new Map(ps.map(p => [p.id, p]));
+  const img = (id, role = 'thumb') => { const p = byId.get(id) || { id }; const st = [role === 'body' && p.w && p.h ? `aspect-ratio:${p.w}/${p.h}` : '', p.focus ? `object-position:${p.focus.x}% ${p.focus.y}%` : ''].filter(Boolean).join(';'); return `data-key="${id}:${role === 'body' ? 'disp' : 'thumb'}" src="${BLANK}"${st ? ` style="${st}"` : ''}`; };
+  const info = App.tripInfo(trip);
+  const html = stops.length > 1 ? Fly.blockHTML(stops, { title: info.title, kicker: '여행의 길', img })
+    : `<section class="st-route"><header class="rt-head"><div class="rt-k">여행의 길</div><h2 class="rt-t">${App.esc(stops[0].name || '이 여행')}</h2></header></section>`;
+  const el = document.createElement('div'); el.className = 'mapview st'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', '여행의 길');
+  el.innerHTML = `<div class="mv-bar"><span>여행의 길</span><button class="mv-close">닫기</button></div>${html}`;
+  document.body.appendChild(el); document.documentElement.classList.add('mv-open');
+  el.querySelectorAll('img[data-key]').forEach(async i => { const u = await App.urlFor(i.dataset.key); if (u) i.src = u; });
+  const un = Fly.mount(el);
+  const close = () => { un && un(); el.remove(); document.documentElement.classList.remove('mv-open'); document.removeEventListener('keydown', key); window.dispatchEvent(new Event('scroll')); };
+  const key = e => { if (e.key === 'Escape') close(); };
+  document.addEventListener('keydown', key);
+  el.querySelector('.mv-close').addEventListener('click', close);
+  el.querySelector('.mv-close').focus();
+  // 지금 보던 장소로 바로
+  const k = stops.findIndex(s => s.ids.includes(focusId));
+  if (k > 0) requestAnimationFrame(() => { const li = el.querySelector(`.rt-stop[data-k="${k}"]`); if (li) el.scrollTop = li.getBoundingClientRect().top - el.getBoundingClientRect().top - (innerWidth >= 900 ? 160 : el.querySelector('.rt-sticky').offsetHeight + 80); });
+}
+
 function mount(root, { trip } = {}) {
   off(); if (!root) return;
   if (window.Fly) cleanup.push(Fly.mount(root));
@@ -197,6 +223,12 @@ function mount(root, { trip } = {}) {
   const vf = root.querySelector('.vf');
   if (vf && !vf.querySelector('.vf-snd')) (vf.querySelector('.vf-l1') || vf).insertAdjacentHTML('beforeend', '<span class="vf-snd" aria-hidden="true"><i></i><i></i><i></i></span>');
   const mm = miniMap(root, vf); if (mm) cleanup.push(mm.destroy);
+  let curId = null;
+  if (mm && vf && trip) {
+    vf.setAttribute('role', 'button'); vf.setAttribute('aria-label', '지도 크게 보기'); vf.removeAttribute('aria-hidden'); vf.classList.add('has-map');
+    const onVf = () => openRouteView(trip, curId); vf.addEventListener('click', onVf);
+    cleanup.push(() => vf.removeEventListener('click', onVf));
+  }
   let lastLL = null, lastPl = '', lastDT = '', moveTimer = 0;
   const medias = () => [...root.querySelectorAll('[data-m]')];
   const blockers = [...root.querySelectorAll('.st-route, .st-fly, .st-map, .st-text, .st-day, .st-contact, .st-end, .st-cover-tx, .st-hint, figcaption, .st-full-cap, .st-badge, .st-play, .st-vtag')];
@@ -220,7 +252,7 @@ function mount(root, { trip } = {}) {
       const key = ds + cur.dataset.t + cur.dataset.pl;
       if (key !== last) {
         vf.querySelector('.vf-d').textContent = ds; vf.querySelector('.vf-t').textContent = cur.dataset.t || '';
-        const pEl = vf.querySelector('.vf-p'); const pl = cur.dataset.pl || '';
+        curId = cur.dataset.m; const pEl = vf.querySelector('.vf-p'); const pl = cur.dataset.pl || '';
         // 장소가 바뀌면: 작은 지도가 그쪽으로 이동하고 "어디 → 어디"를 잠깐 보여줌
         const ll = cur.dataset.ll ? cur.dataset.ll.split(',').map(Number) : null;
         const moved = ll && lastLL && (Math.abs(ll[0] - lastLL[0]) + Math.abs(ll[1] - lastLL[1]) > 0.002);
@@ -259,5 +291,5 @@ function mount(root, { trip } = {}) {
   fx();
 }
 
-window.Motion = { mount, off, openPlayer, frames, amb, ambSource };
+window.Motion = { mount, off, openPlayer, frames, amb, ambSource, openRouteView };
 })();
