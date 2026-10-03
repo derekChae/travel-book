@@ -121,12 +121,13 @@ function renderHome({ quiet = false } = {}) {
   document.title = '나의 여행책';
   document.body.className = 'is-home';
   const list = orderedTrips();
-  const mode = localStorage.getItem('shelfMode') === 'index' ? 'index' : 'stack';
+  const mode = localStorage.getItem('shelfMode') === 'index' ? 'index' : 'cards';
+  const phone = localStorage.getItem('shelfPhone') === 'grid' ? 'grid' : 'swipe';
   const q = quiet || introPlayed; introPlayed = true;
   const coverOf = (t, i) => Pages.plan(t, i.ps).cover;
   let html = `<div class="shelf-root${q ? ' quiet' : ''}">
     <header class="top" id="top"><div class="brand">나의 여행책</div><div style="flex:1"></div>
-      ${list.length ? `<div class="shelf-mode"><button data-shelf="stack" aria-pressed="${mode === 'stack'}">크게</button><button data-shelf="index" aria-pressed="${mode === 'index'}">목록</button></div>
+      ${list.length ? `<div class="shelf-mode"><button data-shelf="cards" aria-pressed="${mode === 'cards'}">표지</button><button data-shelf="index" aria-pressed="${mode === 'index'}">목록</button></div>
       <button class="icon-btn" data-act="home-menu">더보기</button>` : ''}</header>
     <section class="sh-intro"><div class="sh-count">${list.length ? `여행 ${list.length}권 · 사진 ${S.photos.filter(p => p.kind !== 'video').length}장${S.photos.some(p => p.kind === 'video') ? ` · 영상 ${S.photos.filter(p => p.kind === 'video').length}개` : ''}` : '처음 오셨네요'}</div>
       <h1 class="sh-title"><span class="ln">${split('나의', 0)}</span><span class="ln">${split('여행책', 2)}</span></h1></section>`;
@@ -142,6 +143,21 @@ function renderHome({ quiet = false } = {}) {
   const mem = items.find(x => x.ago);
   if (!list.length) {
     html += `<p class="sh-empty">여행 간 날짜만 고르면, 표지부터 사진이 화면 가득 채워진 여행책이 만들어져요.</p>`;
+  } else if (mode === 'cards') {
+    // 표지 카드: 여행마다 고른 글꼴로 제목, 아래에 소개 글과 화면 가득 사진
+    const sizeOf = i => i.ps.some(p => p.kind === 'video') ? `사진 ${i.ps.filter(p => p.kind !== 'video').length} · 영상 ${i.ps.filter(p => p.kind === 'video').length}` : `사진 ${i.ps.length}장`;
+    html += `<div class="bc-row bc-${phone}">${items.map(({ t, i, no, c, ago }, j) => {
+      const font = (t.style || {}).font || 'maru'; ensureFont(font);
+      const heroes = Pages.plan(t, i.ps).shown.filter(p => Story.isHero(p) && (!c || p.id !== c.id)).slice(0, 3);
+      return `<button class="bc" style="--j:${j}" data-go="#/trip/${t.id}" data-trip-go="${t.id}" aria-label="${esc(i.title)} 열기">
+        <span class="bc-cover fv" data-font="${font}">${c ? `<img class="card-img" data-key="${c.id}:disp" src="${S.urls.get(c.id + ':disp') || BLANK}" alt="" style="${c.focus ? `object-position:${c.focus.x}% ${c.focus.y}%` : ''}">` : '<span class="card-empty">사진 없음</span>'}
+          <span class="bc-no">No.${no}</span>${ago ? `<span class="bc-ago">${ago}년 전 오늘</span>` : ''}
+          <span class="bc-ct"><span class="bc-k">${esc([i.countries.join(' · '), i.places.slice(0, 2).join(' · ')].filter(Boolean).join(' · '))}</span><span class="pk-t bc-t">${esc(i.title)}</span></span></span>
+        <span class="bc-body"><span class="bc-m">${fmtRange(i.start, i.end)} · ${sizeOf(i)}${t.published ? ' · 발행됨' : ''}</span>
+          ${t.lede ? `<span class="bc-lede">${esc(t.lede)}</span>` : ''}
+          ${heroes.length ? `<span class="bc-hl">${heroes.map(p => `<img data-key="${p.id}:thumb" src="${BLANK}" alt="">`).join('')}</span>` : ''}
+          <span class="bc-go">펼쳐보기</span></span>
+      </button>`; }).join('')}</div>`;
   } else if (mode === 'stack') {
     html += `<div class="stack">${items.map(({ t, i, no, c, ago }, j) => `
       <button class="card" style="--j:${j}" data-go="#/trip/${t.id}" data-trip-go="${t.id}" aria-label="${esc(i.title)} 열기">

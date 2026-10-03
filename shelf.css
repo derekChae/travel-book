@@ -103,3 +103,46 @@ body.is-home .top, body.is-home .fdock { transition: transform .25s ease; }
 .sh-mem img { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; }
 .sh-mem span { display: grid; font: 500 14px/1.35 "SUIT Variable", sans-serif; }
 .sh-mem b { font-size: 12px; color: #f08a24; letter-spacing: .02em; }
+
+/* 표지 카드 책장 (안 고르기 화면과 같은 결) */
+.bc-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; max-width: 1400px; margin: 0 auto; padding: 0 24px 160px; }
+@media (min-width: 1500px) { .bc-row { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.bc { display: flex; flex-direction: column; padding: 0; border: 0; border-radius: 16px; overflow: hidden; background: #1f1e1c; color: #f3f1ec; text-align: left; cursor: pointer; -webkit-tap-highlight-color: transparent; opacity: 0; transform: translateY(18px); animation: bcIn .8s cubic-bezier(.22,1,.36,1) forwards; animation-delay: calc(min(var(--j), 8) * 70ms + 120ms); transition: transform .2s ease, box-shadow .2s ease; }
+@keyframes bcIn { to { opacity: 1; transform: none; } }
+.quiet .bc { animation: none; opacity: 1; transform: none; }
+@media (hover: hover) { .bc:hover { transform: translateY(-4px); box-shadow: 0 22px 44px -20px rgba(0,0,0,.85); } .bc:hover .card-img { transform: scale(1.035); } }
+.bc:active { scale: .985; }
+.bc-cover { position: relative; display: block; aspect-ratio: 4 / 5; background: #000; overflow: hidden; --st-bold: "MaruBuriBold", "MaruBuri", serif; }
+.bc-cover .card-img { transform: none; transition: transform .8s cubic-bezier(.22,1,.36,1); }
+.bc-cover::after { content: ""; position: absolute; inset: auto 0 0 0; height: 58%; background: linear-gradient(to top, rgba(0,0,0,.72), transparent); pointer-events: none; }
+.bc-no, .bc-ago { position: absolute; top: 12px; z-index: 2; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,.5); font: 700 12px var(--sans); color: #fff; backdrop-filter: blur(6px); font-variant-numeric: tabular-nums; }
+.bc-no { left: 12px; }
+.bc-ago { right: 12px; background: #f08a24; color: #1a1205; }
+.bc-ct { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: block; padding: 16px 18px 18px; color: #fff; }
+.bc-k { display: block; margin-bottom: 6px; font: 600 12px var(--sans); opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bc .bc-t { font-size: clamp(26px, 2.5vw, 36px); }
+.bc-body { display: flex; flex-direction: column; gap: 10px; padding: 14px 18px 18px; flex: 1; }
+.bc-m { font: 600 12.5px var(--sans); color: rgba(243,241,236,.6); font-variant-numeric: tabular-nums; }
+.bc-lede { font-family: "MaruBuri", serif; font-size: 14.5px; line-height: 1.7; color: rgba(243,241,236,.84); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.bc-hl { display: flex; gap: 5px; }
+.bc-hl img { width: 52px; height: 38px; object-fit: cover; border-radius: 5px; }
+.bc-go { margin-top: auto; padding-top: 2px; font: 700 13.5px var(--sans); color: #fff; }
+.bc-go::after { content: " ›"; }
+@media (max-width: 1000px) and (min-width: 761px) { .bc-row { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) {
+  /* 폰 A: 옆으로 넘기기 */
+  .bc-row.bc-swipe { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0 20px 150px; scroll-padding: 0 20px; scrollbar-width: none; }
+  .bc-row.bc-swipe::-webkit-scrollbar { display: none; }
+  .bc-swipe .bc { flex: 0 0 82%; scroll-snap-align: start; }
+  /* 폰 B: 두 줄 격자 */
+  .bc-row.bc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 0 12px 150px; }
+  .bc-grid .bc { border-radius: 12px; }
+  .bc-grid .bc-ct { padding: 10px 12px 12px; }
+  .bc-grid .bc-k, .bc-grid .bc-lede, .bc-grid .bc-hl, .bc-grid .bc-ago { display: none; }
+  .bc-grid .bc .bc-t { font-size: 19px; }
+  .bc-grid .bc-no { top: 8px; left: 8px; font-size: 11px; padding: 3px 8px; }
+  .bc-grid .bc-body { padding: 10px 12px 12px; gap: 6px; }
+  .bc-grid .bc-m { font-size: 11.5px; }
+  .bc-grid .bc-go { font-size: 12.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .bc { animation: none; opacity: 1; transform: none; } }
