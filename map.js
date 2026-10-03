@@ -11,8 +11,9 @@ function stops(photos) {
   for (const p of photos) {
     const c = coord(p); if (!c) continue;
     const last = out[out.length - 1];
-    if (last && km(last.c, c) < 0.3) { last.ids.push(p.id); continue; }
-    out.push({ c, ids: [p.id], name: (p.place && p.place.name) || '', t: p.taken ? p.taken.slice(11, 16) : '' });
+    const tm = p.taken ? p.taken.slice(11, 16) : '';
+    if (last && km(last.c, c) < 0.3) { last.ids.push(p.id); if (tm) last.t2 = tm; if (p.taken) last.end = p.taken; continue; }
+    out.push({ c, ids: [p.id], name: (p.place && p.place.name) || '', t: tm, t2: tm, start: p.taken || null, end: p.taken || null, move: p.moveBy || null });
   }
   return out;
 }

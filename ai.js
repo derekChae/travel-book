@@ -7,7 +7,7 @@ const MAX_IMAGES = 10;
 // 편집 규칙 (하네스). HARNESS.md와 같은 내용. 사람이 하든 AI가 하든 이 규칙대로 구성한다.
 const RULES = `편집 규칙
 1. 사실만: 사진에 보이는 것, 찍은 시각, 위치 정보, 내가 쓰거나 말로 남긴 메모만 근거로 쓴다. 같이 간 사람, 먹은 것, 기분은 지어내지 않는다.
-2. 장소 찾기: 위치 정보가 없어도 장소는 편집자가 직접 찾는다. 간판·표지판 글자, 번호판 지역명, 이름난 지형과 건축물, 같은 날 앞뒤 사진의 흐름을 근거로 삼는다. 근거가 확실한 장소만 쓰고 [장소 사진 N]에 근거를 함께 적는다. 공식 자료로 좌표를 확인했으면 세 번째 칸에 위도,경도를 적는다(지도 동선에 쓰인다). 확실하지 않으면 쓰지 말고 [확인 필요]에 물어본다. 위치 정보(GPS)가 있으면 그것이 우선이다.
+2. 장소 찾기: 위치 정보가 없어도 장소는 편집자가 직접 찾는다. 간판·표지판 글자, 번호판 지역명, 이름난 지형과 건축물, 같은 날 앞뒤 사진의 흐름을 근거로 삼는다. 근거가 확실한 장소만 쓰고 [장소 사진 N]에 근거를 함께 적는다. 공식 자료로 좌표를 확인했으면 세 번째 칸에 위도,경도를 적는다(지도 동선에 쓰인다). 앞 장소에서 이 사진 장소까지 무엇을 타고 왔는지도 근거가 있으면 [이동 사진 N]에 적는다(사진에 탈것이 보이거나, 두 장소를 잇는 교통수단이 하나뿐이라고 공식 자료로 확인될 때). 근거가 없으면 쓰지 않는다. 확실하지 않으면 쓰지 말고 [확인 필요]에 물어본다. 위치 정보(GPS)가 있으면 그것이 우선이다.
 3. 순서: 사진은 찍은 순서 그대로 둔다. 글도 시간 흐름(아침에서 저녁)을 따른다.
 4. 표지: 여행 전체를 대표하는 넓은 장면 한 장. 제목을 얹을 하늘이나 여백이 있는 사진, 사람이 작게 들어가 크기가 느껴지는 사진을 우선한다. 얼굴이 크게 나온 사진은 피한다.
 5. 화면 가득: 전체 사진의 약 5분의 1(최소 1장, 하루 2장 이하). 움직임이 핵심인 영상(눈발, 물살, 파도, 사람들의 움직임)은 우선 후보다. 규모가 큰 풍경, 사람과 풍경의 크기 대비, 그 여행에서만 볼 수 있는 결정적 장면을 고른다. 표지와 같은 사진, 연달아 두 장은 고르지 않는다.
@@ -60,6 +60,7 @@ ${RULES}
 [초점 사진 N] 위/가운데/아래 + 왼/가운데/오른 (화면 가득·표지 사진 중 주인공이 가장자리에 있을 때만)
 [나라] 나라 이름 (확실할 때만)
 [장소 사진 N] 장소 이름 | 근거 | 위도,경도 (확실한 사진만, 좌표는 확인했을 때만)
+[이동 사진 N] 수단 | 근거 (앞 장소에서 이 사진까지, 근거 있을 때만)
 [확인 필요] 장소를 알 수 없는 사진과 질문 (없으면 없음)
 [제목] 12자 이내
 [소개] 2문장 이내
@@ -91,10 +92,10 @@ async function makeFiles(d) {
 
 // ----- 답 읽기 -----
 function parseAnswer(text, d) {
-  const out = { title: null, lede: null, days: {}, photos: {}, cover: null, hero: null, hide: null, focus: {}, places: {}, country: null, ask: null };
+  const out = { title: null, lede: null, days: {}, photos: {}, cover: null, hero: null, hide: null, focus: {}, places: {}, moves: {}, country: null, ask: null };
   const nums = v => [...v.split('\n')[0].matchAll(/\d+/g)].map(x => d.shown[+x[0] - 1]).filter(Boolean).map(p => p.id);
   const clean = text.replace(/\*\*/g, '').replace(/\r/g, '');
-  const re = /\[\s*(나라|확인\s*필요|장소\s*사진\s*\d+|제목|소개|표지|화면\s*가득|빼기|초점\s*사진\s*\d+|날짜\s*모름|\d+\s*일차|사진\s*\d+)\s*\]\s*[:：]?\s*/g;
+  const re = /\[\s*(나라|확인\s*필요|이동\s*사진\s*\d+|장소\s*사진\s*\d+|제목|소개|표지|화면\s*가득|빼기|초점\s*사진\s*\d+|날짜\s*모름|\d+\s*일차|사진\s*\d+)\s*\]\s*[:：]?\s*/g;
   const marks = []; let m;
   while ((m = re.exec(clean))) marks.push({ key: m[1].replace(/\s+/g, ''), start: m.index, end: re.lastIndex });
   marks.forEach((mk, i) => {
@@ -102,6 +103,10 @@ function parseAnswer(text, d) {
     if (!val) return;
     if (mk.key === '나라') { out.country = val.split('\n')[0].trim(); return; }
     if (mk.key === '확인필요') { out.ask = /^없음/.test(val) ? null : val; return; }
+    if (mk.key.startsWith('이동사진')) {
+      const p = d.shown[+mk.key.replace('이동사진', '') - 1]; if (!p) return;
+      const [by, ev] = val.split('\n')[0].split('|').map(x => x.trim()); if (by) out.moves[p.id] = { by, evidence: ev || '' }; return;
+    }
     if (mk.key.startsWith('장소사진')) {
       const p = d.shown[+mk.key.replace('장소사진', '') - 1]; if (!p) return;
       const [name, ev, xy] = val.split('\n')[0].split('|').map(x => x.trim());
@@ -130,7 +135,7 @@ function parseAnswer(text, d) {
 async function applyAnswer(t, r) {
   const ps = S.photos.filter(p => p.tripId === t.id);
   const before = { title: t.title, lede: t.lede, dayNotes: { ...(t.dayNotes || {}) }, coverId: t.coverId, photos: {} };
-  ps.forEach(p => { before.photos[p.id] = { note: p.note || '', hero: p.hero, hidden: p.hidden, focus: p.focus, layout: p.layout, show: p.show, place: p.place }; });
+  ps.forEach(p => { before.photos[p.id] = { note: p.note || '', hero: p.hero, hidden: p.hidden, focus: p.focus, layout: p.layout, show: p.show, place: p.place, moveBy: p.moveBy }; });
   if (r.title) t.title = r.title;
   if (r.lede) t.lede = r.lede;
   if (r.cover) t.coverId = r.cover;
@@ -141,6 +146,7 @@ async function applyAnswer(t, r) {
     if (r.hero) { if (r.hero.includes(p.id)) { p.hero = true; if (p.layout) delete p.layout; } else { delete p.hero; if (p.layout === 'big') delete p.layout; } }
     if (r.hide) { if (r.hide.includes(p.id)) { p.hidden = true; delete p.hero; } else delete p.hidden; }
     if (r.focus[p.id]) p.focus = r.focus[p.id];
+    if (r.moves[p.id]) p.moveBy = r.moves[p.id];
     if (r.places[p.id] && p.lat == null) p.place = { name: r.places[p.id].name, country: r.country || (p.place && p.place.country) || null, source: 'photo', evidence: r.places[p.id].evidence, lat: r.places[p.id].lat, lon: r.places[p.id].lon };
     if (p.id === r.cover) delete p.hidden;
     await DB.putPhoto(p);
@@ -148,7 +154,7 @@ async function applyAnswer(t, r) {
   App.rerender();
   toast('편집안대로 채웠어요', 6000, { label: '되돌리기', run: async () => {
     t.title = before.title; t.lede = before.lede; t.dayNotes = before.dayNotes; t.coverId = before.coverId; await DB.putTrip(t);
-    for (const p of ps) { const o = before.photos[p.id]; p.note = o.note; ['hero', 'hidden', 'focus', 'layout', 'show', 'place'].forEach(k => { if (o[k] === undefined) delete p[k]; else p[k] = o[k]; }); await DB.putPhoto(p); }
+    for (const p of ps) { const o = before.photos[p.id]; p.note = o.note; ['hero', 'hidden', 'focus', 'layout', 'show', 'place', 'moveBy'].forEach(k => { if (o[k] === undefined) delete p[k]; else p[k] = o[k]; }); await DB.putPhoto(p); }
     App.rerender();
   } });
 }
@@ -169,6 +175,7 @@ function openPaste(t, d, preset = '') {
     if (parsed.hero) rows.push(['화면 가득', parsed.hero.length ? parsed.hero.map(nm).join(', ') : '없음']);
     if (parsed.hide && parsed.hide.length) rows.push(['빼기', parsed.hide.map(nm).join(', ')]);
     Object.entries(parsed.places).forEach(([id, v]) => rows.push([`장소 ${nm(id).replace('사진 ', '')}`, v.name + (v.evidence ? ` (${v.evidence})` : '')]));
+    Object.entries(parsed.moves).forEach(([id, v]) => rows.push([`이동 → ${nm(id).replace('사진 ', '')}`, v.by]));
     if (parsed.ask) rows.push(['확인 필요', parsed.ask]);
     if (parsed.title) rows.push(['제목', parsed.title]);
     if (parsed.lede) rows.push(['소개', parsed.lede]);

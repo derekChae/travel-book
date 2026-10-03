@@ -5,7 +5,7 @@ const ML_VER = '5.24.0';
 const STYLES = { light: 'https://tiles.openfreemap.org/styles/positron', '3d': 'https://tiles.openfreemap.org/styles/dark' };
 const DEM = 'https://tiles.mapterhorn.com/tilejson.json';
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const mode = () => localStorage.getItem('mapStyle') === 'light' ? 'light' : '3d';
+const mode = () => localStorage.getItem('mapStyle') === '3d' ? '3d' : 'light';
 
 let libP = null;
 function loadLib() {
@@ -19,20 +19,48 @@ function loadLib() {
   return libP;
 }
 
-// ----- HTML (앱·발행본 공통) -----
-function blockHTML(stops, { title, kicker = '', img }) {
+// ----- HTML (앱·발행본 공통): 매거진 일정표 + 따라 움직이는 지도 -----
+const hm = iso => iso ? iso.slice(11, 16) : '';
+const mins = (a, b) => (a && b) ? Math.round((Date.parse(b + 'Z') - Date.parse(a + 'Z')) / 60000) : null;
+const dur = n => n == null ? '' : n < 60 ? `${n}분` : `${Math.floor(n / 60)}시간${n % 60 ? ` ${n % 60}분` : ''}`;
+function blockHTML(stops, { title, kicker = '', deckDate = '', img }) {
   if (!stops || stops.length < 2) return '';
   let dist = 0; for (let i = 1; i < stops.length; i++) dist += RouteMap.km(stops[i - 1].c, stops[i].c);
-  const data = esc(JSON.stringify(stops.map(s => ({ c: s.c, n: s.name, t: s.t, id: s.ids[0] }))));
-  return `<section class="st-fly" data-stops="${data}">
-    <div class="fly-sticky">
-      <div class="fly-map"></div>
-      <div class="fly-top"><div><div class="fly-k">${esc(kicker)}</div><div class="fly-t">${esc(title)}</div><div class="fly-d">찍은 곳 ${stops.length}곳 · 약 ${dist < 10 ? dist.toFixed(1) : Math.round(dist)}km</div></div>
-        <div class="fly-mode" role="group" aria-label="지도 모양"><button data-fm="3d">3D</button><button data-fm="light">밝게</button></div></div>
-      <div class="fly-card" aria-live="polite"></div>
-      <div class="fly-pics" hidden>${stops.map((s, i) => `<img data-i="${i}" ${img(s.ids[0])} alt="">`).join('')}</div>
+  const first = stops[0].start, last = stops[stops.length - 1].end;
+  const span = mins(first, last);
+  const data = esc(JSON.stringify(stops.map(s => ({ c: s.c, n: s.name, t: s.t }))));
+  const kmTxt = d => d < 1 ? `${Math.round(d * 1000)}m` : d < 10 ? `${d.toFixed(1)}km` : `${Math.round(d)}km`;
+  let list = '';
+  stops.forEach((s, i) => {
+    if (i) {
+      const p = stops[i - 1]; const gap = mins(p.end, s.start); const d = RouteMap.km(p.c, s.c);
+      list += `<li class="rt-leg"><span class="lg-line" aria-hidden="true"></span><span class="lg-body">
+        ${s.move ? `<b class="lg-by">${esc(s.move.by)}</b>` : '<b class="lg-by lg-unk">이동</b>'}
+        <span class="lg-meta">${gap != null ? dur(gap) : ''}${gap != null ? ' · ' : ''}직선 ${kmTxt(d)}</span>
+        ${s.move && s.move.evidence ? `<span class="lg-ev">${esc(s.move.evidence)}</span>` : ''}</span></li>`;
+    }
+    const stay = mins(s.start, s.end);
+    list += `<li class="rt-stop" data-k="${i}">
+      <div class="st-time"><span class="tm">${esc(s.t || '--:--')}</span>${s.t2 && (s.t2 !== s.t || (s.start && s.end && s.start.slice(0, 10) !== s.end.slice(0, 10))) ? `<span class="tm2">– ${s.start && s.end && s.start.slice(0, 10) !== s.end.slice(0, 10) ? `${+s.end.slice(5, 7)}/${+s.end.slice(8, 10)} ` : ''}${esc(s.t2)}</span>` : ''}${s.start && i && stops[i - 1].start && s.start.slice(0, 10) !== stops[i - 1].start.slice(0, 10) ? `<span class="tm2">${+s.start.slice(5, 7)}/${+s.start.slice(8, 10)}</span>` : ''}</div>
+      <div class="st-info"><div class="st-no">${String(i + 1).padStart(2, '0')}</div><h3>${esc(s.name || '이름 없는 곳')}</h3>
+        <div class="st-meta">${stay ? `머문 시간 ${dur(stay)} · ` : ''}사진 ${s.ids.length}</div>
+        <div class="st-pics">${s.ids.slice(0, 3).map(id => `<img ${img(id)} alt="">`).join('')}</div></div>
+    </li>`;
+  });
+  return `<section class="st-route" data-stops="${data}">
+    <header class="rt-head">
+      <div class="rt-k">${esc(kicker)}</div>
+      <h2 class="rt-t">${esc(title)}</h2>
+      <dl class="rt-facts"><div><dt>시간</dt><dd>${hm(first)} – ${hm(last)}${span ? ` <small>${dur(span)}</small>` : ''}</dd></div><div><dt>장소</dt><dd>${stops.length}곳</dd></div><div><dt>거리</dt><dd>직선 ${kmTxt(dist)}</dd></div></dl>
+    </header>
+    <div class="rt-body">
+      <div class="rt-mapcol"><div class="rt-sticky">
+        <div class="fly-map"></div>
+        <div class="fly-mode" role="group" aria-label="지도 모양"><button data-fm="light">평면</button><button data-fm="3d">지형</button></div>
+      </div></div>
+      <ol class="rt-list">${list}</ol>
     </div>
-    <div class="fly-steps" aria-hidden="true">${['all', ...stops.map((_, i) => i)].map(k => `<div class="fly-step" data-k="${k}"></div>`).join('')}</div>
+    <div class="fly-pics" hidden>${stops.map((s, i) => `<img data-i="${i}" ${img(s.ids[0])} alt="">`).join('')}</div>
   </section>`;
 }
 
@@ -62,11 +90,15 @@ function initOne(sec) {
   sec.querySelectorAll('[data-fm]').forEach(b => b.setAttribute('aria-pressed', b.dataset.fm === m));
   const b = new maplibregl.LngLatBounds(); pts.forEach(p => b.extend(p));
   const map = new maplibregl.Map({ container: sec.querySelector('.fly-map'), style: STYLES[m], interactive: false, attributionControl: { compact: true },
-    bounds: b, fitBoundsOptions: { padding: 80 }, pitch: m === '3d' ? 45 : 0, fadeDuration: 0, maxPitch: 75 });
+    bounds: b, fitBoundsOptions: { padding: 60 }, pitch: 0, fadeDuration: 0, maxPitch: 75 });
   const st = { map, stops, pts, frac, prog: 0, target: 0, raf: 0, cur: null, markers: [], pin: null };
   sec._fly = st;
   map.on('load', () => {
     const firstSym = (map.getStyle().layers.find(l => l.type === 'symbol') || {}).id;
+    if (m === 'light') {
+      map.addSource('dem-hs', { type: 'raster-dem', url: DEM });
+      map.addLayer({ id: 'hill', type: 'hillshade', source: 'dem-hs', paint: { 'hillshade-exaggeration': 0.35, 'hillshade-shadow-color': '#8a8478', 'hillshade-highlight-color': '#ffffff', 'hillshade-accent-color': '#b8b2a6' } }, firstSym);
+    }
     if (m === '3d') {
       map.addSource('dem', { type: 'raster-dem', url: DEM });
       map.addSource('dem-hs', { type: 'raster-dem', url: DEM });
@@ -75,7 +107,7 @@ function initOne(sec) {
       try { map.setSky({ 'sky-color': '#0b1a2e', 'horizon-color': '#28405e', 'fog-color': '#0e1624', 'sky-horizon-blend': 0.6, 'horizon-fog-blend': 0.6, 'fog-ground-blend': 0.4 }); } catch { }
     }
     map.addSource('route', { type: 'geojson', lineMetrics: true, data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } } });
-    map.addLayer({ id: 'r-base', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': m === '3d' ? 'rgba(255,255,255,.45)' : 'rgba(20,20,20,.3)', 'line-width': 2, 'line-dasharray': [1.5, 2] } });
+    map.addLayer({ id: 'r-base', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': m === '3d' ? 'rgba(255,255,255,.5)' : 'rgba(20,20,20,.35)', 'line-width': 2, 'line-dasharray': [1.5, 2] } });
     map.addLayer({ id: 'r-glow', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': 14, 'line-blur': 10, 'line-opacity': 0.6, 'line-gradient': grad(0) } });
     map.addLayer({ id: 'r-line', type: 'line', source: 'route', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-width': 4, 'line-gradient': grad(0) } });
     // 작은 점 (지금 머문 곳은 사진으로 크게)
@@ -90,6 +122,7 @@ function initOne(sec) {
     const fold = () => sec.querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact-show').forEach(a => { if (!a.dataset.userOpen) a.classList.remove('maplibregl-compact-show'); });
     sec.querySelector('.maplibregl-ctrl-attrib-button')?.addEventListener('click', () => { const a = sec.querySelector('.maplibregl-ctrl-attrib'); a.dataset.userOpen = a.classList.contains('maplibregl-compact-show') ? '1' : ''; });
     fold(); map.on('resize', fold); map.on('idle', fold);
+    new ResizeObserver(() => map.resize()).observe(sec.querySelector('.fly-map'));
     st.loaded = true; go(sec, st.want ?? 'all', true);
   });
   return st;
@@ -143,46 +176,46 @@ function go(sec, k, instant) {
   const st = sec._fly; if (!st) return; st.want = k; if (!st.loaded) return;
   const { map, stops, pts, frac } = st; const m = sec.dataset.mode;
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const card = sec.querySelector('.fly-card');
+  const items = sec.querySelectorAll('.rt-stop');
+  items.forEach(li => li.classList.toggle('on', li.dataset.k === String(k)));
   if (k === 'all') {
     st.cur = null; st.target = 1; st.pin.getElement().classList.remove('on');
     const b = new maplibregl.LngLatBounds(); pts.forEach(p => b.extend(p));
     map.setPadding({ top: 0, bottom: 0, left: 0, right: 0 });
-    const cam = map.cameraForBounds(b, { padding: { top: 150, bottom: 170, left: 50, right: 50 } }) || {};
+    const cam = map.cameraForBounds(b, { padding: 56 }) || {};
     const ctr = cam.center ? [cam.center.lng ?? cam.center[0], cam.center.lat ?? cam.center[1]] : pts[0];
     tween(st, { center: ctr, zoom: cam.zoom || 11, pitch: 0, bearing: 0, elevation: m === '3d' ? (map.queryTerrainElevation(ctr) || 0) : 0 }, instant || reduce ? 0 : 1800);
-    card.classList.remove('on');
   } else {
     const i = +k; st.cur = i; st.target = frac[i];
     const near = [pts[Math.max(0, i - 1)], pts[i], pts[Math.min(pts.length - 1, i + 1)]];
     const b = new maplibregl.LngLatBounds(); near.forEach(p => b.extend(p));
-    const cam = map.cameraForBounds(b, { padding: { top: 170, bottom: 220, left: 60, right: 60 } }) || {};
-    const zoom = Math.min(m === '3d' ? 13.6 : 15.5, Math.max(9, (cam.zoom || 12) + (m === '3d' ? -0.2 : 0.4)));
+    const cam = map.cameraForBounds(b, { padding: 70 }) || {};
+    const zoom = Math.min(m === '3d' ? 13.4 : 14.5, Math.max(8, (cam.zoom || 12) - 0.2));
     const br = i > 0 ? bearing(pts[i - 1], pts[i]) : (pts[1] ? bearing(pts[0], pts[1]) : 0);
-    map.setPadding({ top: 80, bottom: 0, left: 0, right: 0 });
+    map.setPadding({ top: 60, bottom: 0, left: 0, right: 0 });
     const el = m === '3d' ? (map.queryTerrainElevation(pts[i]) || 0) : 0;
-    tween(st, { center: pts[i], zoom, pitch: m === '3d' ? 58 : 30, bearing: m === '3d' ? br : 0, elevation: el,
-      done: () => { if (st.cur !== i || m !== '3d') return; const e2 = map.queryTerrainElevation(pts[i]) || 0; if (Math.abs(e2 - el) > 100) tween(st, { center: pts[i], zoom, pitch: 58, bearing: br, elevation: e2 }, 600); } }, instant || reduce ? 0 : 2400);
+    tween(st, { center: pts[i], zoom, pitch: m === '3d' ? 55 : 0, bearing: m === '3d' ? br : 0, elevation: el,
+      done: () => { if (st.cur !== i || m !== '3d') return; const e2 = map.queryTerrainElevation(pts[i]) || 0; if (Math.abs(e2 - el) > 100) tween(st, { center: pts[i], zoom, pitch: 55, bearing: br, elevation: e2 }, 600); } }, instant || reduce ? 0 : 2400);
     const pic = sec.querySelector(`.fly-pics img[data-i="${i}"]`);
     const pinEl = st.pin.getElement(); st.pin.setLngLat(pts[i]);
     const pimg = pinEl.querySelector('img');
     if (pic && pic.dataset.key && window.App && (!pic.src || pic.src.startsWith('data:image/gif'))) App.urlFor(pic.dataset.key).then(u => { if (u) { pic.src = u; if (st.cur === i) pimg.src = u; } });
     pimg.src = pic && pic.src || ''; pinEl.querySelector('span').textContent = stops[i].t || '';
     pinEl.classList.remove('on'); void pinEl.offsetWidth; pinEl.classList.add('on');
-    card.innerHTML = `<span class="fc-n">${String(i + 1).padStart(2, '0')}<small>/${String(stops.length).padStart(2, '0')}</small></span><span class="fc-b"><b>${esc(stops[i].n || '이름 없는 곳')}</b>${stops[i].t ? `<span>${esc(stops[i].t)}</span>` : ''}</span>`;
-    card.classList.remove('on'); void card.offsetWidth; card.classList.add('on');
   }
   animLine(st); declutter(st);
 }
 
 function mount(root) {
-  const secs = [...root.querySelectorAll('.st-fly')]; if (!secs.length) return () => { };
+  const secs = [...root.querySelectorAll('.st-route')]; if (!secs.length) return () => { };
   let alive = true; const cleanup = [];
   const pick = () => {
     for (const sec of secs) {
       const r = sec.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) continue;
       let k = 'all';
-      for (const s of sec.querySelectorAll('.fly-step')) if (s.getBoundingClientRect().top < innerHeight * 0.5) k = s.dataset.k;
+      const mapR = sec.querySelector('.rt-sticky').getBoundingClientRect();
+      const anchor = innerWidth >= 900 ? innerHeight * 0.55 : Math.min(innerHeight * 0.8, mapR.bottom + 90);
+      for (const li of sec.querySelectorAll('.rt-stop')) if (li.getBoundingClientRect().top < anchor) k = li.dataset.k;
       const st = sec._fly; if (st && st.want !== k) go(sec, k);
     }
   };
@@ -197,7 +230,7 @@ function mount(root) {
   }, { rootMargin: '800px 0px' });
   secs.forEach(s => io.observe(s));
   const onMode = e => {
-    const b = e.target.closest('[data-fm]'); if (!b) return; const sec = b.closest('.st-fly'); if (!sec) return;
+    const b = e.target.closest('[data-fm]'); if (!b) return; const sec = b.closest('.st-route'); if (!sec) return;
     localStorage.setItem('mapStyle', b.dataset.fm);
     secs.forEach(s => { if (s._fly) { cancelAnimationFrame(s._fly.cam || 0); s._fly.map.remove(); s._fly = null; } initOne(s); });
     pick();

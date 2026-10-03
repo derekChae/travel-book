@@ -157,7 +157,7 @@ function mount(root, { trip } = {}) {
   const vf = root.querySelector('.vf');
   if (vf && !vf.querySelector('.vf-snd')) vf.insertAdjacentHTML('beforeend', '<span class="vf-snd" aria-hidden="true"><i></i><i></i><i></i></span>');
   const medias = () => [...root.querySelectorAll('[data-m]')];
-  const blockers = [...root.querySelectorAll('.st-fly, .st-map, .st-text, .st-day, .st-contact, .st-end, .st-cover-tx, .st-hint, figcaption, .st-full-cap, .st-badge, .st-play, .st-vtag')];
+  const blockers = [...root.querySelectorAll('.st-route, .st-fly, .st-map, .st-text, .st-day, .st-contact, .st-end, .st-cover-tx, .st-hint, figcaption, .st-full-cap, .st-badge, .st-play, .st-vtag')];
   const coverTone = root.querySelector('.st-cover')?.dataset.tone;
   const setTone = t => { if (t) root.style.setProperty('--amb', t.split(',').join(' ')); };
   setTone(coverTone);
