@@ -59,8 +59,8 @@ async function makeImages(file) {
   const bmp = await decodeImage(file);
   const w = bmp.width, h = bmp.height;
   // 원본은 폰 갤러리에 그대로 있으니 다시 저장하지 않음. 화면용 / 책 인쇄용 / 작은 미리보기만 만듦
-  const print = await resizeTo(bmp, 3000, 0.9);
-  const disp = await resizeTo(bmp, 1600, 0.86);
+  const print = await resizeTo(bmp, 4096, 0.92);
+  const disp = await resizeTo(bmp, 2048, 0.9);
   const thumb = await resizeTo(bmp, 480, 0.8);
   const tone = toneOf(bmp);
   if (bmp.close) bmp.close();

@@ -97,6 +97,7 @@ async function importFiles(files) {
           taken: info.taken, offset: info.offset, timeSource: info.timeSource, lat: info.lat, lon: info.lon,
           place, camera: info.camera, w: im.w, h: im.h, note: '', fileName: f.name, size: f.size, type: f.type, sig, addedSeq: Date.now() + (seq++), addedAt: new Date().toISOString() });
         blobs.push([id + ':print', im.print], [id + ':disp', im.disp], [id + ':thumb', im.thumb]);
+        if (!vid && f._handle) { blobs.push([id + ':ohandle', f._handle]); batch[batch.length - 1].origRef = true; }
         if (vid) {
           // 영상 원본은 절대 통째로 복사하지 않음
           // 1) 원본을 가리킬 수 있으면(폴더 연결·PC 파일 고르기) 가리키기만  2) 아니면 6초 미리보기만 저장
@@ -164,6 +165,7 @@ async function openPhoto(id) {
     <dl class="facts">
       <dt>찍은 때</dt><dd>${when ? esc(when) : '<span class="unknown">사진에 날짜 정보가 없어요</span>'}</dd>
       <dt>장소</dt><dd>${where ? esc(where) : '<span class="unknown">사진에 위치 정보가 없어요</span>'}</dd>
+      <dt>화질</dt><dd>${p.origRef ? '원본 연결 · 크게 볼 때 원본 그대로' : p.kind === 'video' ? (p.videoRef ? '원본 영상 연결' : '6초 미리보기') : '고화질 사본 (긴 변 4096px)'}</dd>
     </dl>
     ${!p.taken ? `<label class="saved" for="adate">날짜를 알면 넣어주세요</label><input type="date" id="adate" value="${p.assignedDate || ''}" style="margin-bottom:12px">` : ''}
     <label for="note" class="sr">이 사진 이야기</label>

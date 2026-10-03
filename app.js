@@ -79,7 +79,29 @@ function hydrate(root = document) {
   }), { rootMargin: '1200px 0px' }) : null;
   root.querySelectorAll('img[data-key]').forEach(img => io ? io.observe(img) : loadImg(img));
 }
-async function loadImg(img) { const u = await urlFor(img.dataset.key); if (u) img.src = u; }
+async function loadImg(img) { const u = await urlFor(img.dataset.key); if (u) img.src = u; upgradeToOriginal(img); }
+// 원본 화질: 원본이 연결된 사진은 크게 보일 때 원본 파일을 그대로 띄움 (복사하지 않음, HDR·색도 원본 그대로)
+async function originalURL(id, ask) {
+  const key = id + ':origfile'; if (S.urls.has(key)) return S.urls.get(key);
+  const h = await DB.getBlob(id + ':ohandle'); if (!h || !h.getFile) return '';
+  try {
+    let perm = h.queryPermission ? await h.queryPermission({ mode: 'read' }) : 'granted';
+    if (perm !== 'granted' && ask && h.requestPermission) perm = await h.requestPermission({ mode: 'read' });
+    if (perm !== 'granted') return '';
+    const f = await h.getFile(); const u = URL.createObjectURL(f); S.urls.set(key, u); return u;
+  } catch { return ''; }
+}
+async function upgradeToOriginal(img) {
+  const [id, kind] = (img.dataset.key || '').split(':');
+  if (kind !== 'disp' && kind !== 'print') return;
+  const p = S.photos.find(x => x.id === id); if (!p || !p.origRef || p.kind === 'video') return;
+  const need = (img.getBoundingClientRect().width || img.clientWidth) * (window.devicePixelRatio || 1);
+  if (need && need < (kind === 'print' ? 1200 : 1700)) return; // 작게 보이는 곳은 사본으로 충분
+  const u = await originalURL(id, false); if (!u || img.dataset.orig === '1') return;
+  const pre = new Image(); pre.src = u;
+  try { await pre.decode(); } catch { return; }
+  if (img.isConnected) { img.src = u; img.dataset.orig = '1'; }
+}
 async function hydrateAll(root) {
   const imgs = [...root.querySelectorAll('img[data-key]')];
   await Promise.all(imgs.map(async img => { await loadImg(img); try { await img.decode(); } catch { } }));
@@ -290,4 +312,4 @@ function toast(msg, ms = 2600, action) {
   document.body.appendChild(el); setTimeout(() => el.remove(), ms);
 }
 
-window.App = { FONTS, ensureFont, today: null, go, renderHome, storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };
+window.App = { originalURL, upgradeToOriginal, FONTS, ensureFont, today: null, go, renderHome, storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };
