@@ -215,31 +215,60 @@ body.is-story .st-cover-tx { padding-bottom: calc(96px + env(safe-area-inset-bot
 .font-opt .fo-n { margin-top: 4px; font: 700 12.5px "SUIT Variable", sans-serif; color: #151515; }
 .font-opt .fo-n small { display: block; font-weight: 500; color: #8a867e; margin-top: 1px; }
 
-/* 구성 미리보기 */
-.pv-tabs { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: 2px; }
-.pv-tabs button { height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font: 600 12px var(--sans); }
-.pv-tabs button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
-.pv-card { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fbfaf7; }
-.pv-cover { position: relative; aspect-ratio: 4 / 5; max-height: 46vh; width: 100%; background: #111; overflow: hidden; }
-.pv-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-.pv-cover::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 60%; background: linear-gradient(to top, rgba(0,0,0,.65), transparent); }
-.pv-ct { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 16px 18px; color: #fff; }
-.pv-k { font: 600 11.5px var(--sans); opacity: .9; margin-bottom: 6px; }
-.pv-t { font-family: var(--st-bold, var(--bold)); font-size: 34px; line-height: 1.1; letter-spacing: -0.04em; font-weight: 700; }
-.pv-card[data-font="hahmlet"] .pv-t, .pv-card[data-font="suit"] .pv-t { font-weight: 800; }
-.pv-card[data-font="song"] .pv-t { font-weight: 400; }
-.pv-lede { margin: 0; padding: 14px 18px 4px; font-family: var(--st-serif); font-size: 15.5px; line-height: 1.8; color: #222; }
-.pv-lab { padding: 14px 18px 6px; font: 700 11.5px var(--sans); letter-spacing: .06em; color: #8a867e; }
-.pv-heroes { display: flex; gap: 6px; padding: 0 18px; }
-.pv-heroes figure { margin: 0; flex: 1; max-width: 50%; }
-.pv-heroes img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 6px; }
-.pv-heroes figcaption { font: 500 11px var(--sans); color: #8a867e; margin-top: 3px; }
-.pv-day { padding: 2px 18px 8px; }
-.pv-day b { font: 700 13px var(--sans); }
-.pv-day p { margin: 2px 0 0; font-family: var(--st-serif); font-size: 14.5px; line-height: 1.7; color: #333; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.pv-mv { padding: 0 18px 4px; font: 500 13.5px var(--sans); color: #3a3835; }
-.pv-card > .tip { margin: 12px 18px 16px; }
-.pv-card > :last-child:not(.tip) { padding-bottom: 16px; }
+/* 안 고르기 (어두운 책장 톤, 표지 사진이 주인공) */
+body.is-pick { background: #141414; color: #f3f1ec; }
+body.is-pick .top { background: #141414; color: #f3f1ec; border-bottom-color: rgba(255,255,255,.08); }
+body.is-pick .top .back { color: #f3f1ec; }
+.pk-sp { width: 64px; }
+.pk-sub { max-width: 1100px; margin: 6px auto 0; padding: 0 var(--pad); font: 500 14px/1.6 var(--sans); color: rgba(243,241,236,.66); }
+.pk-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; max-width: 1100px; margin: 18px auto 0; padding: 0 var(--pad); }
+.pk-card { display: flex; flex-direction: column; padding: 0; border: 0; border-radius: 14px; overflow: hidden; background: #1f1e1c; color: inherit; text-align: left; cursor: pointer; transition: transform .2s ease, box-shadow .2s ease; }
+.pk-card:hover { transform: translateY(-3px); box-shadow: 0 18px 40px -18px rgba(0,0,0,.8); }
+.pk-card:active { transform: scale(.985); }
+.pk-cover { position: relative; display: block; aspect-ratio: 4 / 5; background: #000; overflow: hidden; --st-bold: "MaruBuriBold", "MaruBuri", serif; }
+.pk-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pk-cover::after { content: ""; position: absolute; inset: auto 0 0 0; height: 58%; background: linear-gradient(to top, rgba(0,0,0,.72), transparent); }
+.pk-no { position: absolute; top: 12px; left: 12px; z-index: 2; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,.5); font: 700 12px var(--sans); color: #fff; backdrop-filter: blur(6px); }
+.pk-ct { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: block; padding: 16px 16px 18px; color: #fff; }
+.pk-k { display: block; margin-bottom: 6px; font: 600 11.5px var(--sans); opacity: .85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pk-t { display: block; font-family: var(--st-bold); font-size: clamp(24px, 2.6vw, 32px); line-height: 1.12; letter-spacing: -0.04em; font-weight: 700; word-break: keep-all; }
+.pk-body { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px; flex: 1; }
+.pk-dir { font: 700 13px var(--sans); color: #e9c98f; }
+.pk-lede { font-family: "MaruBuri", serif; font-size: 14px; line-height: 1.7; color: rgba(243,241,236,.82); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pk-hl { display: flex; align-items: center; gap: 5px; }
+.pk-hll { margin-right: 4px; font: 600 11px var(--sans); color: rgba(243,241,236,.5); white-space: nowrap; }
+.pk-hl img { width: 44px; height: 32px; object-fit: cover; border-radius: 4px; }
+.pk-go { margin-top: auto; padding-top: 4px; font: 700 13.5px var(--sans); color: #fff; }
+.pk-go::after { content: " ›"; }
+.pk-foot { max-width: 1100px; margin: 22px auto 0; padding: 0 var(--pad); text-align: center; }
+.pk-no-btn { height: 46px; padding: 0 22px; border: 1px solid rgba(255,255,255,.22); border-radius: 999px; background: transparent; color: #f3f1ec; font: 600 14.5px var(--sans); }
+.pk-old { max-width: 1100px; margin: 34px auto 0; padding: 0 0 60px; }
+.pk-oldh { padding: 0 var(--pad); font: 700 12px var(--sans); letter-spacing: .06em; color: rgba(243,241,236,.5); }
+.pk-row-s { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; margin-top: 10px; }
+.pk-card.small .pk-t { font-size: 17px; }
+.pk-card.small .pk-ct { padding: 10px; }
+.pk-card.small .pk-k { display: none; }
+@media (max-width: 760px) {
+  .pk-row:not(.pk-row-s) { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 6px; scrollbar-width: none; }
+  .pk-row:not(.pk-row-s)::-webkit-scrollbar { display: none; }
+  .pk-row:not(.pk-row-s) .pk-card { flex: 0 0 82%; scroll-snap-align: center; }
+  .pk-row-s { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+/* 실제 책 미리보기 */
+.pv-tag { flex: none; padding: 4px 10px; margin-right: 6px; border-radius: 999px; background: rgba(0,0,0,.45); color: #fff; font: 600 11.5px var(--sans); }
+.top:not(.on-cover) .pv-tag, .top.scrolled .pv-tag { background: #efece5; color: #6b675f; }
+.pv-space { height: 150px; background: #fbfaf7; }
+.pvbar { position: fixed; left: 50%; bottom: calc(14px + var(--safe-b)); z-index: 30; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.pvbar-vs { display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: rgba(20,20,20,.86); backdrop-filter: blur(8px); }
+.pvbar-vs button { height: 32px; padding: 0 14px; border: 0; border-radius: 999px; background: transparent; color: rgba(243,241,236,.75); font: 600 13px var(--sans); }
+.pvbar-vs button[aria-pressed="true"] { background: rgba(255,255,255,.18); color: #fff; }
+.pvbar-act { display: flex; gap: 4px; padding: 6px; border-radius: 999px; background: rgba(20,20,20,.92); box-shadow: 0 10px 30px -8px rgba(0,0,0,.5); }
+.pvbar-act button { height: 46px; padding: 0 18px; border: 0; border-radius: 999px; background: transparent; color: #f3f1ec; font: 600 14.5px var(--sans); white-space: nowrap; }
+.pvbar-act .pv-ok { background: #fbfaf7; color: #141414; }
+body.is-preview .st-cover-tx { padding-bottom: calc(148px + var(--safe-b)); }
+.pvbar { transition: transform .25s ease; }
+body.chrome-hidden .pvbar { transform: translate(-50%, 170%); }
+@media (prefers-reduced-motion: reduce) { .pvbar { transition: none; } }
 .rv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .rv-chips button { height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font: 600 14px var(--sans); }
 .rv-chips button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }

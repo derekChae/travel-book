@@ -312,4 +312,4 @@ function toast(msg, ms = 2600, action) {
   document.body.appendChild(el); setTimeout(() => el.remove(), ms);
 }
 
-window.App = { originalURL, upgradeToOriginal, FONTS, ensureFont, today: null, go, renderHome, storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };
+window.App = { hydrateView: hydrate, originalURL, upgradeToOriginal, FONTS, ensureFont, today: null, go, renderHome, storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };
