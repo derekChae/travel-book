@@ -214,3 +214,32 @@ body.is-story .st-cover-tx { padding-bottom: calc(96px + env(safe-area-inset-bot
 .font-opt .fo-b { font-family: var(--st-serif); font-size: 14.5px; color: #3a3835; }
 .font-opt .fo-n { margin-top: 4px; font: 700 12.5px "SUIT Variable", sans-serif; color: #151515; }
 .font-opt .fo-n small { display: block; font-weight: 500; color: #8a867e; margin-top: 1px; }
+
+/* 구성 미리보기 */
+.pv-tabs { display: inline-flex; gap: 4px; margin-left: 8px; vertical-align: 2px; }
+.pv-tabs button { height: 26px; padding: 0 10px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font: 600 12px var(--sans); }
+.pv-tabs button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.pv-card { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: #fbfaf7; }
+.pv-cover { position: relative; aspect-ratio: 4 / 5; max-height: 46vh; width: 100%; background: #111; overflow: hidden; }
+.pv-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pv-cover::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 60%; background: linear-gradient(to top, rgba(0,0,0,.65), transparent); }
+.pv-ct { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 16px 18px; color: #fff; }
+.pv-k { font: 600 11.5px var(--sans); opacity: .9; margin-bottom: 6px; }
+.pv-t { font-family: var(--st-bold, var(--bold)); font-size: 34px; line-height: 1.1; letter-spacing: -0.04em; font-weight: 700; }
+.pv-card[data-font="hahmlet"] .pv-t, .pv-card[data-font="suit"] .pv-t { font-weight: 800; }
+.pv-card[data-font="song"] .pv-t { font-weight: 400; }
+.pv-lede { margin: 0; padding: 14px 18px 4px; font-family: var(--st-serif); font-size: 15.5px; line-height: 1.8; color: #222; }
+.pv-lab { padding: 14px 18px 6px; font: 700 11.5px var(--sans); letter-spacing: .06em; color: #8a867e; }
+.pv-heroes { display: flex; gap: 6px; padding: 0 18px; }
+.pv-heroes figure { margin: 0; flex: 1; max-width: 50%; }
+.pv-heroes img { display: block; width: 100%; aspect-ratio: 3 / 2; object-fit: cover; border-radius: 6px; }
+.pv-heroes figcaption { font: 500 11px var(--sans); color: #8a867e; margin-top: 3px; }
+.pv-day { padding: 2px 18px 8px; }
+.pv-day b { font: 700 13px var(--sans); }
+.pv-day p { margin: 2px 0 0; font-family: var(--st-serif); font-size: 14.5px; line-height: 1.7; color: #333; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.pv-mv { padding: 0 18px 4px; font: 500 13.5px var(--sans); color: #3a3835; }
+.pv-card > .tip { margin: 12px 18px 16px; }
+.pv-card > :last-child:not(.tip) { padding-bottom: 16px; }
+.rv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.rv-chips button { height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font: 600 14px var(--sans); }
+.rv-chips button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }

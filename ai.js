@@ -159,34 +159,86 @@ async function applyAnswer(t, r) {
   } });
 }
 
+// ----- 답 붙여넣기 → 미리보기 → 이대로 만들기 / 다르게 해줘 (계속 반복) -----
+const versions = new Map(); // tripId -> [{raw, parsed}]
 function openPaste(t, d, preset = '') {
-  const sh = App.openSheet(`<h3>AI 답 붙여넣기</h3>
-    <p class="saved" style="margin-top:-6px">AI가 준 답을 통째로 복사해서 붙여넣으세요.</p>
-    <textarea id="ans" placeholder="[제목] ...&#10;[소개] ...&#10;[1일차] ...">${esc(preset)}</textarea>
+  const vs = versions.get(t.id) || [];
+  const sh = App.openSheet(`<h3>${vs.length ? `${vs.length + 1}번째 안 붙여넣기` : 'AI 답 붙여넣기'}</h3>
+    <p class="saved" style="margin-top:-6px">AI가 준 답을 통째로 붙여넣으면, 바로 반영하지 않고 먼저 미리보기로 보여줘요.</p>
+    <textarea id="ans" placeholder="[표지] 사진 3&#10;[제목] ...&#10;[1일차] ...">${esc(preset)}</textarea>
     <div id="pv"></div>
-    <div class="sheet-actions"><button data-close>닫기</button><button class="done" id="fill" disabled>글 채우기</button></div>`);
+    <div class="sheet-actions">${vs.length ? '<button id="back-pv">이전 안 보기</button>' : '<button data-close>닫기</button>'}<button class="done" id="fill" disabled>미리보기</button></div>`);
   const ta = $('#ans', sh), pv = $('#pv', sh), fill = $('#fill', sh);
   let parsed = null;
   const show = () => {
     parsed = parseAnswer(ta.value, d);
-    const rows = [];
-    const nm = id => '사진 ' + (d.shown.findIndex(p => p.id === id) + 1);
-    if (parsed.cover) rows.push(['표지', nm(parsed.cover)]);
-    if (parsed.hero) rows.push(['화면 가득', parsed.hero.length ? parsed.hero.map(nm).join(', ') : '없음']);
-    if (parsed.hide && parsed.hide.length) rows.push(['빼기', parsed.hide.map(nm).join(', ')]);
-    Object.entries(parsed.places).forEach(([id, v]) => rows.push([`장소 ${nm(id).replace('사진 ', '')}`, v.name + (v.evidence ? ` (${v.evidence})` : '')]));
-    Object.entries(parsed.moves).forEach(([id, v]) => rows.push([`이동 → ${nm(id).replace('사진 ', '')}`, v.by]));
-    if (parsed.ask) rows.push(['확인 필요', parsed.ask]);
-    if (parsed.title) rows.push(['제목', parsed.title]);
-    if (parsed.lede) rows.push(['소개', parsed.lede]);
-    Object.entries(parsed.days).forEach(([k, v]) => rows.push([d.dayLabel(k), v]));
-    Object.entries(parsed.photos).forEach(([id, v]) => rows.push([`사진 ${d.shown.findIndex(p => p.id === id) + 1}`, v]));
-    fill.disabled = !rows.length;
-    pv.innerHTML = ta.value.trim() ? (rows.length ? `<div class="seg-label">채워질 글 ${rows.length}곳</div><div class="preview-list">${rows.map(([k, v]) => `<div><b>${esc(k)}</b>${esc(v.length > 80 ? v.slice(0, 80) + '…' : v)}</div>`).join('')}</div>`
-      : '<div class="tip">형식을 못 알아봤어요. [제목], [1일차], [사진 3] 같은 표시가 들어간 답인지 확인해 주세요.</div>') : '';
+    const n = Object.keys(parsed.days).length + Object.keys(parsed.photos).length + Object.keys(parsed.places).length + (parsed.title ? 1 : 0) + (parsed.cover ? 1 : 0) + (parsed.hero ? 1 : 0);
+    fill.disabled = !n;
+    pv.innerHTML = ta.value.trim() && !n ? '<div class="tip">형식을 못 알아봤어요. [제목], [1일차], [사진 3] 같은 표시가 들어간 답인지 확인해 주세요.</div>' : '';
   };
   ta.addEventListener('input', show); show();
-  fill.addEventListener('click', async () => { App.closeSheet(true); await applyAnswer(t, parsed); });
+  fill.addEventListener('click', () => { const list = versions.get(t.id) || []; list.push({ raw: ta.value, parsed }); versions.set(t.id, list); App.closeSheet(true); openPreview(t, d, list.length - 1); });
+  $('#back-pv', sh)?.addEventListener('click', () => { App.closeSheet(true); openPreview(t, d, vs.length - 1); });
+}
+
+// 미리보기: 실제로 어떻게 만들어질지 (표지 · 제목 · 화면 가득 · 장소 · 이동 · 날짜별 글)
+async function openPreview(t, d, idx) {
+  const list = versions.get(t.id) || []; const v = list[idx]; if (!v) return;
+  const r = v.parsed; const P = id => d.shown.find(p => p.id === id); const no = id => d.shown.findIndex(p => p.id === id) + 1;
+  const coverP = (r.cover && P(r.cover)) || d.plan.cover || d.shown[0];
+  const thumb = async p => p ? await urlFor(p.id + ':disp') : '';
+  const title = r.title || App.tripInfo(t).title;
+  const heroes = (r.hero || []).map(P).filter(Boolean);
+  const hides = (r.hide || []).map(P).filter(Boolean);
+  const places = [...new Set(Object.values(r.places).map(x => x.name))];
+  const font = (t.style || {}).font || 'maru';
+  const sh = App.openSheet(`<h3>미리보기 ${list.length > 1 ? `<span class="pv-tabs">${list.map((_, i) => `<button data-v="${i}" aria-pressed="${i === idx}">${i + 1}안</button>`).join('')}</span>` : ''}</h3>
+    <p class="saved" style="margin-top:-6px">이렇게 만들어져요. 마음에 안 들면 다르게 해 달라고 다시 물어볼게요.</p>
+    <div class="pv-card st" data-font="${font}">
+      <div class="pv-cover">${coverP ? `<img src="${await thumb(coverP)}" alt="" style="${coverP.focus ? `object-position:${coverP.focus.x}% ${coverP.focus.y}%` : ''}">` : ''}
+        <div class="pv-ct"><div class="pv-k">${esc(r.country || '')}${places.length ? (r.country ? ' · ' : '') + esc(places.slice(0, 3).join(' · ')) : ''}</div><div class="pv-t">${esc(title)}</div></div></div>
+      ${r.lede ? `<p class="pv-lede">${esc(r.lede)}</p>` : ''}
+      ${heroes.length ? `<div class="pv-lab">화면 가득으로 크게</div><div class="pv-heroes">${(await Promise.all(heroes.map(async p => `<figure><img src="${await thumb(p)}" alt=""><figcaption>사진 ${no(p.id)}</figcaption></figure>`))).join('')}</div>` : ''}
+      ${Object.keys(r.days).length ? `<div class="pv-lab">날짜별 이야기</div>${Object.entries(r.days).map(([k, txt]) => `<div class="pv-day"><b>${esc(d.dayLabel(k))}</b><p>${esc(txt)}</p></div>`).join('')}` : ''}
+      ${Object.keys(r.moves).length ? `<div class="pv-lab">이동</div>${Object.entries(r.moves).map(([id, m]) => `<div class="pv-mv">→ 사진 ${no(id)}까지 · ${esc(m.by)}</div>`).join('')}` : ''}
+      ${hides.length ? `<div class="pv-lab">뺄 사진</div><div class="pv-mv">${hides.map(p => '사진 ' + no(p.id)).join(', ')}</div>` : ''}
+      ${r.ask ? `<div class="tip"><b>확인 필요</b> ${esc(r.ask)}</div>` : ''}
+    </div>
+    <div class="sheet-actions"><button id="pv-no">다르게 해줘</button><button class="done" id="pv-ok">이대로 만들기</button></div>`);
+  sh.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => { App.closeSheet(true); openPreview(t, d, +b.dataset.v); }));
+  $('#pv-ok', sh).addEventListener('click', async () => { App.closeSheet(true); await applyAnswer(t, r); versions.delete(t.id); });
+  $('#pv-no', sh).addEventListener('click', () => { App.closeSheet(true); openRevise(t, d, idx); });
+}
+
+// 다르게 해줘: 무엇이 싫은지 고르면 AI에게 보낼 '다시 부탁' 문장을 만들어 줌
+const REVISE = [['cover', '표지를 다른 사진으로'], ['hero', '화면 가득 사진을 다르게'], ['title', '제목을 다른 느낌으로'], ['text', '글을 다시'], ['short', '글을 더 짧게'], ['long', '글을 조금 더 길게'], ['all', '전체를 완전히 다르게']];
+function openRevise(t, d, idx) {
+  const sh = App.openSheet(`<h3>어떻게 다르게 할까요?</h3>
+    <div class="rv-chips">${REVISE.map(([k, l]) => `<button data-rv="${k}" aria-pressed="false">${l}</button>`).join('')}</div>
+    <textarea id="rv-tx" placeholder="더 하고 싶은 말 (안 써도 돼요). 예: 첫날 사진 중에 사람 나온 걸 표지로" style="margin-top:12px;min-height:80px"></textarea>
+    ${window.Voice ? '' : ''}
+    <div class="saved" id="rv-st"></div>
+    <div class="sheet-actions"><button id="rv-back">미리보기로</button><button class="done" id="rv-go">AI에게 다시 부탁하기</button></div>`);
+  if (window.Voice) Voice.attachMic($('#rv-tx', sh), $('#rv-st', sh));
+  sh.querySelector('.rv-chips').addEventListener('click', e => { const b = e.target.closest('[data-rv]'); if (b) b.setAttribute('aria-pressed', b.getAttribute('aria-pressed') !== 'true'); });
+  $('#rv-back', sh).addEventListener('click', () => { App.closeSheet(true); openPreview(t, d, idx); });
+  $('#rv-go', sh).addEventListener('click', async () => {
+    const picked = [...sh.querySelectorAll('[data-rv][aria-pressed="true"]')].map(b => REVISE.find(x => x[0] === b.dataset.rv)[1]);
+    const extra = $('#rv-tx', sh).value.trim();
+    if (!picked.length && !extra) { $('#rv-st', sh).textContent = '바꾸고 싶은 것을 하나 이상 골라 주세요'; return; }
+    const prev = (versions.get(t.id) || [])[idx];
+    const ask = `방금 답한 구성이 마음에 안 들어. 아래를 바꿔서 같은 형식으로 다시 답해줘. 처음에 준 편집 규칙은 그대로 지켜줘.
+바꿀 것: ${picked.join(', ') || '아래 메모 참고'}${extra ? `\n내 메모: ${extra}` : ''}
+${picked.includes('전체를 완전히 다르게') ? '표지, 화면 가득, 제목, 글 모두 앞의 답과 겹치지 않게 해줘.' : '말하지 않은 부분은 앞의 답을 그대로 유지해줘.'}
+앞의 답:
+${prev ? prev.raw : ''}`;
+    let copied = false; try { await navigator.clipboard.writeText(ask); copied = true; } catch { }
+    let shared = false;
+    if (navigator.share && /Android|iPhone|iPad/i.test(navigator.userAgent)) { try { await navigator.share({ text: ask }); shared = true; } catch { } }
+    App.closeSheet(true);
+    App.toast(shared ? '보냈어요. 새 답을 받으면 붙여넣어 주세요.' : copied ? '부탁 문장을 복사했어요. AI 대화에 붙여넣고, 새 답을 받으면 여기에 붙여넣어 주세요.' : '복사하지 못했어요', 6000);
+    openPaste(t, d);
+  });
 }
 
 // ----- PC 크롬 내장 AI -----
@@ -214,12 +266,12 @@ async function open(t) {
   const bi = await builtinStatus();
   const canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [new File([new Blob(['x'], { type: 'image/jpeg' })], 'a.jpg', { type: 'image/jpeg' })] }));
   const sh = App.openSheet(`<h3>AI로 글쓰기</h3>
-    <p>사진 ${d.attach.length}장과 편집 규칙을 AI에게 보내요. 받은 답을 붙여넣으면 표지·화면 가득·빼기 같은 구성과 제목·글이 한 번에 채워져요.</p>
+    <p>사진 ${d.attach.length}장과 편집 규칙을 AI에게 보내요. 받은 답을 붙여넣으면 먼저 미리보기로 보여드려요. 마음에 들면 만들고, 싫으면 다르게 해 달라고 다시 부탁할 수 있어요.</p>
     ${d.shown.length > d.attach.length ? `<p class="saved">사진이 많아서 고르게 ${d.attach.length}장만 보내요. 나머지는 시각·장소 정보만 보내요.</p>` : ''}
     <div class="pick-list">
       ${canShareFiles ? `<button id="go-share"><b>1. ChatGPT · Gemini 앱으로 보내기</b><small>공유 창에서 앱을 고르면 사진과 요청문이 같이 들어가요</small></button>` : ''}
       <button id="go-copy"><b>${canShareFiles ? '또는 ' : '1. '}요청문 복사${canShareFiles ? '' : ' + 사진 저장'}</b><small>${canShareFiles ? '앱에 글이 안 들어가면 이걸 복사해서 붙여넣어요' : 'AI 사이트에 요청문을 붙여넣고 저장한 사진을 첨부해요'}</small></button>
-      <button id="go-paste"><b>2. AI 답 붙여넣기</b><small>받은 답을 통째로 붙여넣으면 끝</small></button>
+      <button id="go-paste"><b>2. AI 답 붙여넣기</b><small>미리보기로 먼저 확인해요</small></button>
       ${bi !== 'none' && bi !== 'unavailable' ? `<button id="go-bi"><b>이 PC에서 바로 쓰기 (크롬 내장 AI)</b><small>무료, 이 기기 안에서만 처리. 품질은 큰 AI보다 낮을 수 있어요</small></button><div class="saved" id="bi-st"></div>` : ''}
     </div>
     <div class="saved" id="ai-st"></div>`);
@@ -243,5 +295,5 @@ async function open(t) {
   $('#go-bi', sh)?.addEventListener('click', () => runBuiltin(t, d, sh));
 }
 
-window.AI = { open, buildPrompt, parseAnswer, applyAnswer, tripData, builtinStatus, RULES };
+window.AI = { open, buildPrompt, parseAnswer, applyAnswer, tripData, builtinStatus, RULES, openPaste, openPreview, versions };
 })();
