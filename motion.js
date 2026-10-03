@@ -14,7 +14,7 @@ async function loadVideo(v) {
   v.src = src;
   // 긴 영상은 고른 장면부터 6초만 반복
   const p = App.S.photos.find(x => x.id === v.dataset.vid);
-  if (p && p.clip) {
+  if (p && p.clip && !p.preview) {
     const s = p.clip.start, e = s + 6;
     v.addEventListener('loadedmetadata', () => { v.currentTime = s; }, { once: true });
     v.addEventListener('timeupdate', () => { if (v.currentTime > e || v.currentTime < s - 0.5) v.currentTime = s; });
@@ -92,7 +92,7 @@ function openPlayer(id, { edit } = {}) {
   el.innerHTML = `<video controls autoplay playsinline></video><div class="vp-bar"><button class="vp-close">닫기</button><span class="vp-cap">${App.esc(Render.capText(p))}</span>${edit ? '<button class="vp-edit">편집</button>' : ''}</div>`;
   document.body.appendChild(el);
   const v = el.querySelector('video');
-  withPermission(() => App.urlFor(p.id + ':video')).then(u => { if (!u) { el.querySelector('.vp-cap').textContent = '원본 영상을 열 수 없어요. 폰에서 지워졌거나 카메라 폴더 연결이 끊겼어요.'; return; } v.src = u; if (p.clip) v.currentTime = p.clip.start; v.play().catch(() => { }); });
+  withPermission(() => App.urlFor(p.id + ':video')).then(u => { if (!u) { el.querySelector('.vp-cap').textContent = '원본 영상을 열 수 없어요. 폰에서 지워졌거나 카메라 폴더 연결이 끊겼어요.'; return; } v.src = u; if (p.clip && !p.preview) v.currentTime = p.clip.start; if (p.preview) el.querySelector('.vp-cap').textContent = '6초 미리보기 · 전체 영상은 폰 갤러리에 있어요'; v.play().catch(() => { }); });
   ambSet(null);
   const close = () => { v.pause(); el.remove(); document.removeEventListener('keydown', key); window.dispatchEvent(new Event('scroll')); };
   const key = e => { if (e.key === 'Escape') close(); };

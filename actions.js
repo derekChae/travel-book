@@ -35,7 +35,18 @@ function autosave(el, save, status) {
 }
 
 // ---------- 사진 넣기 ----------
-function pickFiles() {
+async function pickFiles() {
+  // 파일 고르기 창이 원본을 가리킬 수 있으면 그걸 씀 (영상을 복사하지 않음)
+  if (window.showOpenFilePicker) {
+    try {
+      const hs = await showOpenFilePicker({ multiple: true, types: [{ description: '사진·영상', accept: { 'image/*': ['.jpg', '.jpeg', '.png', '.heic', '.heif', '.webp'], 'video/*': ['.mp4', '.mov', '.m4v', '.webm', '.3gp'] } }] });
+      const files = await Promise.all(hs.map(async h => { const f = await h.getFile(); f._handle = h; return f; }));
+      if (files.length) importFiles(files); return;
+    } catch (e) { if (e.name === 'AbortError') return; }
+  }
+  pickFilesInput();
+}
+function pickFilesInput() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.multiple = true;
   // 안드로이드 크롬은 '사진 고르기' 창에서 위치 정보를 지워버림. 파일 창으로 열면 위치가 남음.
@@ -54,7 +65,7 @@ async function importFiles(files) {
   let lock = null; try { lock = await navigator.wakeLock?.request('screen'); } catch { }
   const existing = new Set(S.photos.map(p => p.sig));
   const newPhotos = [], failed = [], skipped = [];
-  let copiedBytes = 0;
+  let copiedBytes = 0, previews = 0;
   // 영상은 시간대 정보가 없어서, 같이 넣은 사진들의 시간대를 빌려 씀
   const offsetGuess = () => { const c = {}; [...S.photos, ...newPhotos, ...batch].forEach(p => { if (p.offset && p.kind !== 'video') c[p.offset] = (c[p.offset] || 0) + 1; }); return Object.keys(c).sort((x, y) => c[y] - c[x])[0] || null; };
   const touched = new Set(), created = [];
@@ -87,11 +98,18 @@ async function importFiles(files) {
           place, camera: info.camera, w: im.w, h: im.h, note: '', fileName: f.name, size: f.size, type: f.type, sig, addedSeq: Date.now() + (seq++), addedAt: new Date().toISOString() });
         blobs.push([id + ':print', im.print], [id + ':disp', im.disp], [id + ':thumb', im.thumb]);
         if (vid) {
-          // 폴더에서 넣은 영상은 원본을 가리키기만 함 (폰 저장 공간을 쓰지 않음). 직접 고른 영상은 복사.
-          if (f._handle) blobs.push([id + ':vhandle', f._handle]);
-          else { blobs.push([id + ':video', f]); copiedBytes += f.size; }
-          const last = batch[batch.length - 1]; last.videoRef = !!f._handle;
-          if (im.duration > 12) last.clip = { start: +Math.max(0, Math.min(im.duration * 0.3, im.duration - 6)).toFixed(2) };
+          // 영상 원본은 절대 통째로 복사하지 않음
+          // 1) 원본을 가리킬 수 있으면(폴더 연결·PC 파일 고르기) 가리키기만  2) 아니면 6초 미리보기만 저장
+          const last = batch[batch.length - 1];
+          const st0 = im.duration > 12 ? +Math.max(0, Math.min(im.duration * 0.3, im.duration - 6)).toFixed(2) : 0;
+          if (f._handle) { blobs.push([id + ':vhandle', f._handle]); last.videoRef = true; if (im.duration > 12) last.clip = { start: st0 }; }
+          else {
+            txt.textContent = `${k + 1} / ${files.length} · 영상 미리보기 만드는 중`;
+            const pv = await Meta.makePreviewClip(f, st0, 6);
+            if (pv) { blobs.push([id + ':video', pv]); copiedBytes += pv.size; last.preview = { len: Math.min(6, im.duration || 6), from: st0 }; }
+            else last.posterOnly = true;
+            previews++;
+          }
         }
         existing.add(sig);
       } catch (e) { console.warn(e); failed.push(f.name); }
@@ -117,7 +135,7 @@ async function importFiles(files) {
       ${skipped.length ? `<li>이미 들어 있는 사진 ${skipped.length}장은 건너뛰었어요</li>` : ''}
       ${failed.length ? `<li>열 수 없는 파일 ${failed.length}장: ${esc(failed.slice(0, 3).join(', '))}${failed.length > 3 ? ' 외' : ''}</li>` : ''}
     </ul>
-    ${copiedBytes > 150e6 ? `<div class="tip"><b>영상 ${(copiedBytes / 1e9).toFixed(1)}GB를 이 폰 저장 공간에 복사했어요.</b> 긴 영상은 <b>날짜로 사진 넣기</b>(카메라 폴더 연결)로 넣으면 원본을 그대로 가리켜서 공간을 쓰지 않아요.</div>` : ''}
+    ${previews ? `<div class="tip">영상 ${previews}개는 원본을 가리킬 수 없어서 <b>6초 미리보기만</b> 저장했어요 (모두 ${(copiedBytes / 1e6).toFixed(1)}MB). 전체 영상은 폰 갤러리에 그대로 있어요. 원본까지 보려면 <b>날짜로 사진 넣기</b>로 카메라 폴더를 연결해서 넣어 주세요.</div>` : ''}
     ${noTime ? `<div class="tip"><b>찍은 날짜가 없는 사진 ${noTime}장</b>은 '날짜 모르는 사진'에 모아뒀어요. 사진을 눌러 날짜를 넣을 수 있어요.</div>` : ''}
     ${newPhotos.length && noGps ? `<div class="tip"><b>위치 정보가 없는 사진 ${noGps}장</b>은 장소 없이 넣었어요.<br>
       ${isAndroid ? '갤럭시라면 카메라 앱 → 설정 → <b>위치 태그</b>를 켜 두면 다음부터 장소도 자동으로 들어가요. 카카오톡 등으로 주고받은 사진은 위치가 빠져 있을 수 있어요.'
@@ -382,12 +400,15 @@ document.addEventListener('click', async e => {
     closeSheet(true); location.hash = '#/'; toast('지웠어요');
   }
   else if (act === 'home-menu') {
+    setTimeout(async () => { const el = document.getElementById('use-tip'); if (!el || !navigator.storage) return; const e = await navigator.storage.estimate(); const mb = (e.usageDetails && e.usageDetails.indexedDB || e.usage || 0) / 1e6; el.innerHTML = `이 기기에서 여행책이 쓰는 공간: <b>${mb < 1000 ? mb.toFixed(0) + 'MB' : (mb / 1000).toFixed(1) + 'GB'}</b>`; }, 50);
     openSheet(`<h3>더보기</h3><div class="pick-list">
       <button data-act="print-all">전체를 한 권의 책으로 뽑기 (PDF)</button>
       <button data-act="backup">백업 파일 저장</button>
       <button data-act="restore">백업 파일 불러오기</button></div>
+      <div class="tip" id="use-tip">이 기기에서 쓰는 공간을 확인하는 중…</div>
       <div class="tip">사진과 글은 이 기기(브라우저) 안에만 저장돼요. 폰을 바꾸거나 PC로 옮길 때는 <b>백업 파일 저장</b> → 다른 기기에서 <b>불러오기</b>를 해 주세요.</div>`);
   }
+  else if (act === '__noop') { }
   else if (act === 'print-all') { closeSheet(true); location.hash = '#/print/all'; }
   else if (act === 'backup') { closeSheet(); exportBackup(); }
   else if (act === 'restore') { closeSheet(); importBackup(); }

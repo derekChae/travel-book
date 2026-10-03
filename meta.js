@@ -160,6 +160,43 @@ async function makeVideoImages(file) {
   } finally { URL.revokeObjectURL(url); }
 }
 
+
+// 원본을 가리킬 수 없을 때만: 고른 장면부터 6초짜리 작은 미리보기 영상을 만들어 저장 (소리 포함, 약 1MB)
+async function makePreviewClip(file, start = 0, len = 6) {
+  if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return null;
+  const url = URL.createObjectURL(file);
+  const v = document.createElement('video'); v.playsInline = true; v.preload = 'auto'; v.src = url;
+  // 화면 밖에서도 영상이 계속 디코딩되도록 아주 작게 붙여 둠
+  v.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:.01;pointer-events:none;z-index:-1'; document.body.appendChild(v);
+  try {
+    await new Promise((res, rej) => { v.onloadedmetadata = res; v.onerror = rej; setTimeout(rej, 15000); });
+    const d = isFinite(v.duration) ? v.duration : len; const s = Math.max(0, Math.min(start, d - Math.min(len, d)));
+    const sc = Math.min(1, 960 / Math.max(v.videoWidth, v.videoHeight));
+    const c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * sc) & ~1; c.height = Math.round(v.videoHeight * sc) & ~1;
+    const g = c.getContext('2d'); const tracks = [...c.captureStream(24).getVideoTracks()];
+    // 소리: 화면에선 음소거로 재생하되 영상의 소리 트랙은 그대로 담음 (사용자 터치 없이도 동작)
+    v.muted = true; let ac = null;
+    try { const cs = (v.captureStream || v.mozCaptureStream).call(v); setTimeout(() => {}, 0); tracks.push(...cs.getAudioTracks()); v._cs = cs; } catch { }
+    await new Promise(r => { v.onseeked = r; v.currentTime = s; setTimeout(r, 4000); });
+    await Promise.race([v.play().catch(() => { }), new Promise(r => setTimeout(r, 3000))]);
+    await new Promise(r => setTimeout(r, 120));
+    if (v._cs) v._cs.getAudioTracks().forEach(t => { if (!tracks.includes(t)) tracks.push(t); });
+    const mime = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/webm;codecs=vp9,opus', 'video/webm'].find(t => MediaRecorder.isTypeSupported(t)) || '';
+    const rec = new MediaRecorder(new MediaStream(tracks), mime ? { mimeType: mime } : {});
+    const chunks = []; rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+    rec.start(250);
+    const end = s + Math.min(len, d - s);
+    await new Promise(r => {
+      const iv = setInterval(() => { g.drawImage(v, 0, 0, c.width, c.height); if (v.currentTime >= end || v.ended) { clearInterval(iv); r(); } }, 1000 / 30);
+      setTimeout(() => { clearInterval(iv); r(); }, (len + 4) * 1000);
+    });
+    v.pause(); if (rec.state !== 'inactive') rec.stop(); await Promise.race([new Promise(r => rec.onstop = r), new Promise(r => setTimeout(r, 4000))]);
+    if (!chunks.length) return null;
+    return new Blob(chunks, { type: (mime || 'video/webm').split(';')[0] });
+  } catch (e) { console.warn('preview clip failed', e); return null; }
+  finally { v.remove(); URL.revokeObjectURL(url); }
+}
+
 // ---------- 장소 이름 (기기 안에 있는 도시 목록으로 찾음, 인터넷 안 씀) ----------
 let _cities = null;
 async function loadCities() {
@@ -251,4 +288,4 @@ function assignTrips(newPhotos, trips, allPhotos, makeTrip) {
   return { touched, created };
 }
 
-window.Meta = { toneOf, isVideo, readVideoInfo, makeVideoImages, mp4Meta, timeFromName, readPhotoInfo, makeImages, placeFor, loadCities, sortPhotos, assignTrips, absTime, dayOf, dayDiff, parseExifDate, parseOffset };
+window.Meta = { makePreviewClip, toneOf, isVideo, readVideoInfo, makeVideoImages, mp4Meta, timeFromName, readPhotoInfo, makeImages, placeFor, loadCities, sortPhotos, assignTrips, absTime, dayOf, dayDiff, parseExifDate, parseOffset };

@@ -38,8 +38,8 @@ function storyHTML(ctx) {
   const pos = p => p.focus ? `object-position:${p.focus.x}% ${p.focus.y}%` : '';
   const canVid = p => isVid(p) && ctx.videos !== false;
   // 영상: 화면에 보이면 소리 없이 재생, 누르면 소리와 함께 크게
-  const media = (p, role, extra = '') => canVid(p)
-    ? `<video class="st-v" ${ctx.img(p, role).replace(/\bsrc=/, 'data-poster=')} data-vkey="${p.id}:video" data-vid="${p.id}" muted playsinline loop preload="none" ${extra}></video><button class="st-play" data-play="${p.id}" aria-label="소리 켜고 보기"><span class="pl-i" aria-hidden="true"></span>${dur(p.duration)}</button>`
+  const media = (p, role, extra = '') => canVid(p) && !p.posterOnly
+    ? `<video class="st-v" ${ctx.img(p, role).replace(/\bsrc=/, 'data-poster=')} data-vkey="${p.id}:video" data-vid="${p.id}" muted playsinline loop preload="none" ${extra}></video><button class="st-play" data-play="${p.id}" aria-label="소리 켜고 보기"><span class="pl-i" aria-hidden="true"></span>${p.preview ? '미리보기' : dur(p.duration)}</button>`
     : `<img ${ctx.img(p, role)} alt="${esc(p.note ? p.note.slice(0, 60) : cap(p))}" ${tapP(p)} ${extra}>${isVid(p) ? `<span class="st-vtag">영상 ${dur(p.duration)}</span>` : ''}`;
   const fig = (p, cls = '', role = 'body') => `<figure class="st-fig ${cls}${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, role, `style="aspect-ratio:${(p.w || 1)}/${(p.h || 1)}"`)}<figcaption>${esc(cap(p))}</figcaption></figure>`;
   const cover = ctx.cover;
