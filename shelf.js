@@ -67,8 +67,8 @@ function mount(root, { quiet } = {}) {
   mountIndex(root);
   root.querySelectorAll('[data-shelf]').forEach(b => b.addEventListener('click', () => {
     if (b.getAttribute('aria-pressed') === 'true') return;
-    localStorage.setItem('shelfMode', b.dataset.shelf);
-    const swap = () => { App.renderHome({ quiet: true, fresh: true }); window.scrollTo(0, 0); };
+    localStorage.setItem('shelfView', b.dataset.shelf);
+    const swap = () => { App.rerender(); window.scrollTo(0, 0); };
     if (document.startViewTransition && !reduce()) document.startViewTransition(swap); else swap();
   }));
 }
