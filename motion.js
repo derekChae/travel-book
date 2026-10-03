@@ -106,7 +106,7 @@ function mount(root, { trip } = {}) {
   off(); if (!root) return;
   if (window.Fly) cleanup.push(Fly.mount(root));
   const ambBtn = document.querySelector('[data-act="amb"]');
-  const setBtn = () => { if (ambBtn) { ambBtn.setAttribute('aria-pressed', amb.on); ambBtn.textContent = amb.on ? '현장음 끄기' : '현장음'; } };
+  const setBtn = () => { if (ambBtn) { ambBtn.setAttribute('aria-pressed', amb.on); ambBtn.setAttribute('aria-label', amb.on ? '현장음 끄기' : '현장음 켜기'); } };
   setBtn();
   const onAmb = e => { if (!e.target.closest('[data-act="amb"]')) return; amb.on = !amb.on; setBtn(); if (amb.on) { App.toast('현장음을 켰어요. 영상에서 가져온 소리가 가까운 시간의 사진에 흘러요.', 3500); window.dispatchEvent(new Event('scroll')); } else ambSet(null); };
   document.addEventListener('click', onAmb);

@@ -325,7 +325,7 @@ document.addEventListener('click', async e => {
   const act = a.dataset.act;
   if (act === 'add') { if (window.Folder) Folder.start(); else pickFiles(); }
   else if (act === 'pick-files-direct') { closeSheet(true); pickFiles(); }
-  else if (act === 'edit-title') { const t = curTrip(); openTextSheet({ title: '여행 제목', value: t.title || tripInfo(t).title, placeholder: '예: 하쿠바 눈 여행', save: async v => { t.title = v; await DB.putTrip(t); } }); }
+  else if (act === 'edit-title') { const t = curTrip(); closeSheet(true); openTextSheet({ title: '여행 제목', value: t.title || tripInfo(t).title, placeholder: '예: 하쿠바 눈 여행', save: async v => { t.title = v; await DB.putTrip(t); } }); }
   else if (act === 'edit-lede') { const t = curTrip(); openTextSheet({ title: '이 여행을 한 줄로', value: t.lede, placeholder: '어떤 여행이었나요?', multiline: true, save: async v => { t.lede = v; await DB.putTrip(t); } }); }
   else if (act === 'edit-day') { const t = curTrip(); const k = a.dataset.day; t.dayNotes = t.dayNotes || {};
     openTextSheet({ title: k === 'unknown' ? '이야기' : fmtFull(k), value: t.dayNotes[k], placeholder: '이날 있었던 일', multiline: true, save: async v => { if (v) t.dayNotes[k] = v; else delete t.dayNotes[k]; await DB.putTrip(t); } }); }
@@ -352,8 +352,14 @@ document.addEventListener('click', async e => {
   else if (act === 'publish') { const t = curTrip(); closeSheet(true); if (window.Publish) Publish.open(t); }
   else if (act === 'ai') { if (window.AI) AI.open(curTrip()); }
   else if (act === 'voice') { if (window.Voice) Voice.quickNote(curTrip()); }
-  else if (act === 'pick') openPicker(curTrip());
+  else if (act === 'pick') { const t = curTrip(); closeSheet(true); openPicker(t); }
   else if (act === 'share-menu') openShareMenu(curTrip());
+  else if (act === 'trip-more') { const t = curTrip(); openSheet(`<h3>편집 · 보내기</h3><div class="pick-list">
+      <button data-act="pick"><b>사진 고르기</b><small>표지 · 화면 가득 · 빼기를 누르면 바로 바뀌어요</small></button>
+      <button data-act="edit-title"><b>제목 바꾸기</b><small>${esc(tripInfo(t).title)}</small></button>
+      <button data-act="publish"><b>링크로 보여주기</b><small>비밀번호를 아는 사람만 볼 수 있어요</small></button>
+      <button data-act="export"><b>파일로 내보내기</b><small>책 PDF · AI·노션용 파일 · 블로그용 글</small></button>
+      <button data-go="#/book/${t.id}" data-close><b>책 모양으로 보기</b><small>인쇄했을 때 페이지 모양</small></button></div>`); }
   else if (act === 'hide-photo') {
     const p = S.photos.find(x => x.id === a.dataset.id); p.hidden = true; delete p.show; await DB.putPhoto(p); closeSheet();
     toast('책에서 뺐어요. 사진은 그대로 있어요.', 4000, { label: '되돌리기', run: async () => { delete p.hidden; await DB.putPhoto(p); rerender(); } });

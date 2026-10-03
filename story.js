@@ -43,6 +43,7 @@ function storyHTML(ctx) {
     : `<img ${ctx.img(p, role)} alt="${esc(p.note ? p.note.slice(0, 60) : cap(p))}" ${tapP(p)} ${extra}>${isVid(p) ? `<span class="st-vtag">영상 ${dur(p.duration)}</span>` : ''}`;
   const fig = (p, cls = '', role = 'body') => `<figure class="st-fig ${cls}${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, role, `style="aspect-ratio:${(p.w || 1)}/${(p.h || 1)}"`)}<figcaption>${esc(cap(p))}</figcaption></figure>`;
   const cover = ctx.cover;
+  const rimg = (list) => (id, role = 'thumb') => { const p = list.find(q => q.id === id) || { id }; const st = [role === 'body' && p.w && p.h ? `aspect-ratio:${p.w}/${p.h}` : '', p.focus ? `object-position:${p.focus.x}% ${p.focus.y}%` : ''].filter(Boolean).join(';'); return ctx.img(p, role) + (st ? ` style="${st}"` : ''); };
   let h = `<article class="st">
   <header class="st-cover ${cover ? '' : 'no-photo'}" ${cover ? tone(cover) : ''}>
     ${cover ? (canVid(cover) ? `<video class="st-cover-img st-v" ${ctx.img(cover, 'hero').replace(/\bsrc=/, 'data-poster=')} data-vkey="${cover.id}:video" data-vid="${cover.id}" muted playsinline loop preload="none" style="${pos(cover)}"></video>` : `<img class="st-cover-img" ${ctx.img(cover, 'hero')} alt="" ${tapP(cover)} style="${pos(cover)}">`) : ''}
@@ -71,7 +72,7 @@ function storyHTML(ctx) {
           : E ? `<button class="st-hint" data-act="edit-day" data-day="${k}">이날 있었던 일을 남겨보세요.</button>` : ''}
       </section>`;
     }
-    if (window.Fly) h += Fly.blockHTML(RouteMap.stops(days.get(k).concat(cover && App.dayKey(cover) === k && !days.get(k).includes(cover) ? [cover] : []).sort((a, b) => (a.taken || '').localeCompare(b.taken || ''))), { title: (() => { const ss = RouteMap.stops(days.get(k)); const a = ss[0] && ss[0].name, z = ss.length > 1 && ss[ss.length - 1].name; return a && z && a !== z ? `${a}에서 ${z}까지` : (k === 'unknown' ? '그날의 길' : `${Render.dayLabel(k)}의 길`); })(), kicker: multi && no ? `DAY ${no} · 그날의 길` : '그날의 길', img: id => ctx.img(ctx.shown.find(p => p.id === id) || { id }, 'thumb') });
+    if (window.Fly) h += Fly.blockHTML(RouteMap.stops(days.get(k).concat(cover && App.dayKey(cover) === k && !days.get(k).includes(cover) ? [cover] : []).sort((a, b) => (a.taken || '').localeCompare(b.taken || ''))), { title: (() => { const ss = RouteMap.stops(days.get(k)); const a = ss[0] && ss[0].name, z = ss.length > 1 && ss[ss.length - 1].name; return a && z && a !== z ? `${a}에서 ${z}까지` : (k === 'unknown' ? '그날의 길' : `${Render.dayLabel(k)}의 길`); })(), kicker: multi && no ? `DAY ${no} · 그날의 길` : '그날의 길', img: rimg(ctx.shown) });
     for (const b of blocks(days.get(k))) {
       const p = b.ps[0];
       if (b.t === 'full') h += `<section class="st-full${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, 'hero', `style="${pos(p)}"`)}</section><div class="st-full-cap">${esc(cap(p))}</div>${p.note ? `<section class="st-text" ${tapP(p)}>${paras(p.note)}</section>` : ''}`;
@@ -89,7 +90,7 @@ function storyHTML(ctx) {
   const md = p => `${+p.taken.slice(5, 7)}.${+p.taken.slice(8, 10)} ${p.taken.slice(11, 16)}`;
   const dayCount = new Set(all.map(p => App.dayKey(p)).filter(Boolean)).size;
   const facts = [dayCount ? `${dayCount}일` : '', `사진 ${nPhoto}장`, nVid ? `영상 ${nVid}개` : '', timed.length ? `첫 컷 ${md(timed[0])}` : '', timed.length > 1 ? `마지막 컷 ${md(timed[timed.length - 1])}` : ''].filter(Boolean);
-  if (window.Fly) { const withC = new Set(all.filter(p => RouteMap.coord(p)).map(p => App.dayKey(p))); const allStops = RouteMap.stops(all); const perDayMax = Math.max(0, ...[...withC].map(dk => RouteMap.stops(all.filter(p => App.dayKey(p) === dk)).length)); if (withC.size > 1 && allStops.length > perDayMax) h += Fly.blockHTML(RouteMap.stops(all), { title: '여행 전체의 길', kicker: '여행 전체', img: id => ctx.img(all.find(p => p.id === id) || { id }, 'thumb') }); }
+  if (window.Fly) { const withC = new Set(all.filter(p => RouteMap.coord(p)).map(p => App.dayKey(p))); const allStops = RouteMap.stops(all); const perDayMax = Math.max(0, ...[...withC].map(dk => RouteMap.stops(all.filter(p => App.dayKey(p) === dk)).length)); if (withC.size > 1 && allStops.length > perDayMax) h += Fly.blockHTML(RouteMap.stops(all), { title: '여행 전체의 길', kicker: '여행 전체', img: rimg(all) }); }
   h += `<section class="st-contact">
     <div class="cs-head"><span>밀착 인화지</span><span>${all.length}컷</span></div>
     <div class="cs-strip">${all.map((p, i) => `<button class="cs-f" data-jump="${p.id}"><img ${ctx.img(p, 'thumb')} alt=""><span class="cs-n">${String(i + 1).padStart(2, '0')}${isVid(p) ? ' ▶' : ''}</span><span class="cs-t">${p.taken ? p.taken.slice(5, 10).replace('-', '.') + ' ' + p.taken.slice(11, 16) : ''}</span></button>`).join('')}</div>

@@ -204,7 +204,7 @@ function renderStory(id) {
   document.title = info.title + ' · 나의 여행책';
   view().innerHTML = `<header class="top on-cover" id="top"><button class="back" data-go="#/">‹ 책장</button>
       <div class="top-title">${esc(info.title)}</div>
-      ${info.ps.some(p => p.kind === 'video') ? '<button class="icon-btn" data-act="amb" aria-pressed="false">현장음</button>' : ''}<button class="icon-btn" data-act="pick">사진 고르기</button><button class="icon-btn" data-act="share-menu">보내기</button></header>
+      ${info.ps.some(p => p.kind === 'video') ? '<button class="icon-btn ib-snd" data-act="amb" aria-pressed="false" aria-label="현장음"></button>' : ''}<button class="icon-btn" data-act="trip-more">편집</button></header>
     <div data-trip="${t.id}">${Story.storyHTML(sctx)}</div>
     ${storyDock()}`;
   hydrate(view());

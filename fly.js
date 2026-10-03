@@ -34,17 +34,15 @@ function blockHTML(stops, { title, kicker = '', deckDate = '', img }) {
   stops.forEach((s, i) => {
     if (i) {
       const p = stops[i - 1]; const gap = mins(p.end, s.start); const d = RouteMap.km(p.c, s.c);
-      list += `<li class="rt-leg"><span class="lg-line" aria-hidden="true"></span><span class="lg-body">
-        ${s.move ? `<b class="lg-by">${esc(s.move.by)}</b>` : '<b class="lg-by lg-unk">이동</b>'}
-        <span class="lg-meta">${gap != null ? dur(gap) : ''}${gap != null ? ' · ' : ''}직선 ${kmTxt(d)}</span>
-        ${s.move && s.move.evidence ? `<span class="lg-ev">${esc(s.move.evidence)}</span>` : ''}</span></li>`;
+      list += `<li class="rt-leg"><span class="lg-by${s.move ? '' : ' lg-unk'}">${s.move ? esc(s.move.by) : '이동'}</span><span class="lg-meta">${gap != null ? dur(gap) + ' · ' : ''}${kmTxt(d)}</span>${s.move && s.move.evidence ? `<span class="lg-ev">${esc(s.move.evidence)}</span>` : ''}</li>`;
     }
     const stay = mins(s.start, s.end);
+    const overnight = s.start && s.end && s.start.slice(0, 10) !== s.end.slice(0, 10);
+    const newDay = s.start && i && stops[i - 1].start && s.start.slice(0, 10) !== stops[i - 1].start.slice(0, 10);
     list += `<li class="rt-stop" data-k="${i}">
-      <div class="st-time"><span class="tm">${esc(s.t || '--:--')}</span>${s.t2 && (s.t2 !== s.t || (s.start && s.end && s.start.slice(0, 10) !== s.end.slice(0, 10))) ? `<span class="tm2">– ${s.start && s.end && s.start.slice(0, 10) !== s.end.slice(0, 10) ? `${+s.end.slice(5, 7)}/${+s.end.slice(8, 10)} ` : ''}${esc(s.t2)}</span>` : ''}${s.start && i && stops[i - 1].start && s.start.slice(0, 10) !== stops[i - 1].start.slice(0, 10) ? `<span class="tm2">${+s.start.slice(5, 7)}/${+s.start.slice(8, 10)}</span>` : ''}</div>
-      <div class="st-info"><div class="st-no">${String(i + 1).padStart(2, '0')}</div><h3>${esc(s.name || '이름 없는 곳')}</h3>
-        <div class="st-meta">${stay ? `머문 시간 ${dur(stay)} · ` : ''}사진 ${s.ids.length}</div>
-        <div class="st-pics">${s.ids.slice(0, 3).map(id => `<img ${img(id)} alt="">`).join('')}</div></div>
+      <div class="st-head"><span class="st-no">${String(i + 1).padStart(2, '0')}</span><span class="tm">${newDay ? `${+s.start.slice(5, 7)}/${+s.start.slice(8, 10)} ` : ''}${esc(s.t || '--:--')}${s.t2 && (s.t2 !== s.t || overnight) ? `–${overnight ? `${+s.end.slice(5, 7)}/${+s.end.slice(8, 10)} ` : ''}${esc(s.t2)}` : ''}</span>
+        <h3>${esc(s.name || '이름 없는 곳')}</h3>${stay ? `<span class="st-meta">${dur(stay)} 머묾</span>` : ''}</div>
+      <div class="st-pics${s.ids.length > 1 ? ' many' : ''}">${s.ids.slice(0, 3).map((id, j) => `<img ${img(id, j ? 'thumb' : 'body')} alt="">`).join('')}</div>
     </li>`;
   });
   return `<section class="st-route" data-stops="${data}">

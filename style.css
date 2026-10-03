@@ -197,4 +197,11 @@ body.is-story .st-cover-tx { padding-bottom: calc(96px + env(safe-area-inset-bot
 .vstrip img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; }
 .vstrip span { position: absolute; right: 4px; bottom: 3px; font-size: 10.5px; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
 
-.icon-btn[data-act="amb"][aria-pressed="true"] { background: #ff3b30; color: #fff !important; border-radius: 999px; }
+
+
+/* 현장음 아이콘 버튼 */
+.ib-snd { position: relative; width: 40px; padding: 0; }
+.ib-snd::before { content: ""; position: absolute; left: 11px; top: 14px; width: 6px; height: 10px; background: currentColor; clip-path: polygon(0 25%, 45% 25%, 100% 0, 100% 100%, 45% 75%, 0 75%); }
+.ib-snd::after { content: ""; position: absolute; left: 20px; top: 13px; width: 8px; height: 14px; border: 2px solid currentColor; border-left: 0; border-radius: 0 10px 10px 0; opacity: .35; }
+.ib-snd[aria-pressed="true"]::after { opacity: 1; color: #ff3b30; }
+.ib-snd[aria-pressed="true"]::before { color: #ff3b30; }
