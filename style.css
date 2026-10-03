@@ -205,3 +205,12 @@ body.is-story .st-cover-tx { padding-bottom: calc(96px + env(safe-area-inset-bot
 .ib-snd::after { content: ""; position: absolute; left: 20px; top: 13px; width: 8px; height: 14px; border: 2px solid currentColor; border-left: 0; border-radius: 0 10px 10px 0; opacity: .35; }
 .ib-snd[aria-pressed="true"]::after { opacity: 1; color: #ff3b30; }
 .ib-snd[aria-pressed="true"]::before { color: #ff3b30; }
+
+/* 글꼴 고르기 */
+.font-grid { display: grid; gap: 8px; margin-top: 4px; }
+.font-opt { display: grid; gap: 4px; text-align: left; padding: 14px 16px; border: 1.5px solid var(--line); border-radius: 14px; background: #fff; color: #151515; cursor: pointer; }
+.font-opt[aria-pressed="true"] { border-color: #151515; box-shadow: inset 0 0 0 1px #151515; }
+.font-opt .fo-t { font-family: var(--st-bold); font-size: 24px; line-height: 1.2; letter-spacing: -0.03em; }
+.font-opt .fo-b { font-family: var(--st-serif); font-size: 14.5px; color: #3a3835; }
+.font-opt .fo-n { margin-top: 4px; font: 700 12.5px "SUIT Variable", sans-serif; color: #151515; }
+.font-opt .fo-n small { display: block; font-weight: 500; color: #8a867e; margin-top: 1px; }

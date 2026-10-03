@@ -283,6 +283,28 @@ function openShareMenu(t) {
   </div>`);
 }
 
+
+// ---------- 글꼴 · 글자 크기 (누르면 바로 바뀜) ----------
+function openStyle(t) {
+  Object.keys(App.FONTS).forEach(App.ensureFont);
+  const st = t.style || {}; const title = tripInfo(t).title;
+  const sh = openSheet(`<h3>글꼴 · 글자 크기</h3>
+    <p class="saved" style="margin-top:-6px">누르면 바로 바뀌어요. 레이아웃과 사진 크기는 그대로예요.</p>
+    <div class="font-grid">${Object.entries(App.FONTS).map(([k, f]) => `<button class="font-opt st" data-font="${k}" data-fk="${k}" aria-pressed="${(st.font || 'maru') === k}"><span class="fo-t">${esc(title)}</span><span class="fo-b">사진 사이로 이어지는 그날의 이야기</span><span class="fo-n">${f.name}<small>${f.note}</small></span></button>`).join('')}</div>
+    <div class="seg-label">본문 글자 크기</div>
+    <div class="seg" id="size-seg">${[['s', '작게'], ['m', '보통'], ['l', '크게']].map(([k, l]) => `<button data-sz="${k}" aria-pressed="${(st.size || 'm') === k}">${l}</button>`).join('')}</div>
+    <div class="sheet-actions"><button class="done" data-close>완료</button></div>`, { onClose: () => rerender() });
+  sh.addEventListener('click', async e => {
+    const f = e.target.closest('[data-fk]'), z = e.target.closest('[data-sz]');
+    if (!f && !z) return;
+    t.style = { ...(t.style || {}), ...(f ? { font: f.dataset.fk } : {}), ...(z ? { size: z.dataset.sz } : {}) };
+    await DB.putTrip(t);
+    if (f) sh.querySelectorAll('[data-fk]').forEach(b => b.setAttribute('aria-pressed', b === f));
+    if (z) sh.querySelectorAll('[data-sz]').forEach(b => b.setAttribute('aria-pressed', b === z));
+    const art = document.querySelector('[data-trip] .st'); if (art) { art.dataset.font = t.style.font || 'maru'; art.dataset.size = t.style.size || 'm'; }
+  });
+}
+
 // ---------- 글 쓰기 창 (제목·한 줄·하루 이야기) ----------
 function openTextSheet({ title, value, placeholder, multiline, save }) {
   const sh = openSheet(`<h3>${esc(title)}</h3>
@@ -371,10 +393,12 @@ document.addEventListener('click', async e => {
   else if (act === 'ai') { if (window.AI) AI.open(curTrip()); }
   else if (act === 'voice') { if (window.Voice) Voice.quickNote(curTrip()); }
   else if (act === 'pick') { const t = curTrip(); closeSheet(true); openPicker(t); }
+  else if (act === 'style') { const t = curTrip(); closeSheet(true); openStyle(t); }
   else if (act === 'share-menu') openShareMenu(curTrip());
   else if (act === 'trip-more') { const t = curTrip(); openSheet(`<h3>편집 · 보내기</h3><div class="pick-list">
       <button data-act="pick"><b>사진 고르기</b><small>표지 · 화면 가득 · 빼기를 누르면 바로 바뀌어요</small></button>
       <button data-act="edit-title"><b>제목 바꾸기</b><small>${esc(tripInfo(t).title)}</small></button>
+      <button data-act="style"><b>글꼴 · 글자 크기</b><small>${esc((App.FONTS[(t.style || {}).font] || App.FONTS.maru).name)}</small></button>
       <button data-act="publish"><b>링크로 보여주기</b><small>비밀번호를 아는 사람만 볼 수 있어요</small></button>
       <button data-act="export"><b>파일로 내보내기</b><small>책 PDF · AI·노션용 파일 · 블로그용 글</small></button>
       <button data-go="#/book/${t.id}" data-close><b>책 모양으로 보기</b><small>인쇄했을 때 페이지 모양</small></button></div>`); }

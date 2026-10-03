@@ -190,6 +190,19 @@ function renderTrip(id) {
 }
 
 
+
+// ---------- 글꼴 (여행마다 고름, 매거진 레이아웃은 그대로) ----------
+const FONTS = {
+  maru: { name: '마루부리', note: '차분한 명조 · 기본', css: [] },
+  hahmlet: { name: '함렛 + SUIT', note: '굵은 명조 제목, 잡지 표지 느낌', css: ['https://fonts.googleapis.com/css2?family=Hahmlet:wght@400;700;800&display=swap'] },
+  song: { name: '송명 + 고운바탕', note: '붓맛 제목, 여행 에세이 느낌', css: ['https://fonts.googleapis.com/css2?family=Song+Myung&family=Gowun+Batang:wght@400;700&display=swap'] },
+  suit: { name: 'SUIT', note: '깔끔한 고딕, 사진이 더 돋보여요', css: [] },
+  wanted: { name: '원티드 산스 + 마루부리', note: '요즘 고딕 제목, 명조 본문', css: ['https://cdn.jsdelivr.net/gh/wanteddev/wanted-sans@v1.0.3/packages/wanted-sans/fonts/webfonts/variable/split/WantedSansVariable.min.css'] },
+};
+function ensureFont(key) {
+  (FONTS[key] || FONTS.maru).css.forEach(href => { if (!document.querySelector(`link[href="${href}"]`)) { const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href; document.head.appendChild(l); } });
+}
+
 // ---------- 이야기 화면 (사진 위주) ----------
 function storyCtx(t, { edit = false, img } = {}) {
   const { info, plan, ctx } = bookCtx(t, { edit });
@@ -200,6 +213,7 @@ function renderStory(id) {
   const t = S.trips.find(x => x.id === id);
   if (!t) { location.hash = '#/'; return; }
   document.body.className = 'is-story';
+  ensureFont((t.style || {}).font);
   const { info, sctx } = storyCtx(t, { edit: true });
   document.title = info.title + ' · 나의 여행책';
   view().innerHTML = `<header class="top on-cover" id="top"><button class="back" data-go="#/">‹ 책장</button>
@@ -276,4 +290,4 @@ function toast(msg, ms = 2600, action) {
   document.body.appendChild(el); setTimeout(() => el.remove(), ms);
 }
 
-window.App = { today: null, go, renderHome, storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };
+window.App = { FONTS, ensureFont, today: null, go, renderHome, storyCtx, S, $, esc, uid, dayKey, fmtFull, fmtTime, fmtRange, placeText, tripInfo, tripPhotos, orderedTrips, issueNo, bookCtx, rerender, route, toast, urlFor, imgTag, BLANK };

@@ -44,7 +44,8 @@ function storyHTML(ctx) {
   const fig = (p, cls = '', role = 'body') => `<figure class="st-fig ${cls}${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, role, `style="aspect-ratio:${(p.w || 1)}/${(p.h || 1)}"`)}<figcaption>${esc(cap(p))}</figcaption></figure>`;
   const cover = ctx.cover;
   const rimg = (list) => (id, role = 'thumb') => { const p = list.find(q => q.id === id) || { id }; const st = [role === 'body' && p.w && p.h ? `aspect-ratio:${p.w}/${p.h}` : '', p.focus ? `object-position:${p.focus.x}% ${p.focus.y}%` : ''].filter(Boolean).join(';'); return ctx.img(p, role) + (st ? ` style="${st}"` : ''); };
-  let h = `<article class="st">
+  const sty = t.style || {};
+  let h = `<article class="st" data-font="${esc(sty.font || 'maru')}" data-size="${esc(sty.size || 'm')}">
   <header class="st-cover ${cover ? '' : 'no-photo'}" ${cover ? tone(cover) : ''}>
     ${cover ? (canVid(cover) ? `<video class="st-cover-img st-v" ${ctx.img(cover, 'hero').replace(/\bsrc=/, 'data-poster=')} data-vkey="${cover.id}:video" data-vid="${cover.id}" muted playsinline loop preload="none" style="${pos(cover)}"></video>` : `<img class="st-cover-img" ${ctx.img(cover, 'hero')} alt="" ${tapP(cover)} style="${pos(cover)}">`) : ''}
     <div class="st-cover-tx">

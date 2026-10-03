@@ -256,3 +256,21 @@ html.mv-open, html.mv-open body { overflow: hidden; }
   .mapview .rt-sticky { top: 78px; height: calc(100vh - 110px); }
 }
 @media (prefers-reduced-motion: reduce) { .mapview { animation: none; } }
+
+/* ===== 글꼴 (여행마다) ===== */
+.st[data-font="hahmlet"] { --st-bold: "Hahmlet", serif; --st-semi: "SUIT Variable", sans-serif; --st-serif: "SUIT Variable", -apple-system, sans-serif; }
+.st[data-font="hahmlet"] :is(.st-cover h1, .st-day h2, .st-end-t, .rt-t, .st-head h3, .fo-t) { font-weight: 800; letter-spacing: -0.05em; }
+.st[data-font="song"] { --st-bold: "Song Myung", serif; --st-semi: "Gowun Batang", serif; --st-serif: "Gowun Batang", serif; }
+.st[data-font="song"] :is(.st-cover h1, .st-day h2, .st-end-t, .rt-t, .st-head h3, .fo-t) { font-weight: 400; letter-spacing: -0.02em; }
+.st[data-font="suit"] { --st-bold: "SUIT Variable", sans-serif; --st-semi: "SUIT Variable", sans-serif; --st-serif: "SUIT Variable", -apple-system, sans-serif; }
+.st[data-font="suit"] :is(.st-cover h1, .st-day h2, .st-end-t, .rt-t, .st-head h3, .fo-t) { font-weight: 800; letter-spacing: -0.045em; }
+.st[data-font="suit"] .st-text { line-height: 1.85; }
+.st[data-font="wanted"] { --st-bold: "Wanted Sans Variable", sans-serif; --st-semi: "MaruBuriSemiBold", serif; }
+.st[data-font="wanted"] :is(.st-cover h1, .st-day h2, .st-end-t, .rt-t, .st-head h3, .fo-t) { font-weight: 700; letter-spacing: -0.04em; }
+/* 본문 글자 크기 */
+.st[data-size="s"] .st-text { font-size: 16px; } .st[data-size="s"] .st-lede { font-size: 18px; }
+.st[data-size="l"] .st-text { font-size: 20.5px; } .st[data-size="l"] .st-lede { font-size: 23px; }
+@media (min-width: 900px) {
+  .st[data-size="s"] .st-text { font-size: 17px; } .st[data-size="s"] .st-lede { font-size: 20px; }
+  .st[data-size="l"] .st-text { font-size: 22px; } .st[data-size="l"] .st-lede { font-size: 26px; }
+}

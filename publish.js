@@ -39,6 +39,7 @@ async function bookPage(t, onProgress) {
 <title>${esc(info.title)}</title>
 <link rel="stylesheet" href="https://hangeul.pstatic.net/hangeul_static/css/maru-buri.css">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css">
+${((App.FONTS[(t.style || {}).font] || {}).css || []).map(h => `<link rel="stylesheet" href="${h}">`).join('')}
 <style>html,body{margin:0;background:#fbfaf7}${css}</style></head>
 <body>${Story.storyHTML(ro).replace(/<div class="vf"[\s\S]*?<\/div><\/article>/, '</article>')}<script>${mapJs}\nFly.mount(document.body);<\/script><script>document.addEventListener('click',e=>{const j=e.target.closest('[data-jump]');if(!j)return;const t=document.querySelector('[data-m="'+j.dataset.jump+'"]');window.scrollTo({top:t?t.getBoundingClientRect().top+scrollY-40:0,behavior:'smooth'});});<\/script></body></html>`;
 }
