@@ -102,6 +102,46 @@ function openPlayer(id, { edit } = {}) {
   el.querySelector('.vp-close').focus();
 }
 
+
+// ----- 작은 동그라미 지도: 지금 어디인지, 다음 장소로 넘어가면 그쪽으로 이동 -----
+function miniMap(root, vf) {
+  const box = vf && vf.querySelector('.vf-map'); if (!box) return null;
+  const pts = [...root.querySelectorAll('[data-ll]')].map(e => e.dataset.ll.split(',').map(Number));
+  if (!pts.length) return null;
+  const st = { map: null, ready: false, cur: null, raf: 0, line: [] };
+  // 찍은 순서대로 이은 선 (같은 곳 반복은 하나로)
+  pts.forEach(p => { const l = st.line[st.line.length - 1]; if (!l || Math.abs(l[0] - p[0]) + Math.abs(l[1] - p[1]) > 0.0005) st.line.push(p); });
+  box.hidden = false;
+  (async () => {
+    if (!window.Fly || !(await Fly.loadLib())) { box.hidden = true; return; }
+    st.map = new maplibregl.Map({ container: box.querySelector('.vf-mapc'), style: 'https://tiles.openfreemap.org/styles/positron', interactive: false, attributionControl: false, center: [pts[0][1], pts[0][0]], zoom: 11, fadeDuration: 0 });
+    st.map.on('load', () => {
+      const firstSym = (st.map.getStyle().layers.find(l => l.type === 'symbol') || {}).id;
+      st.map.addSource('hs', { type: 'raster-dem', url: 'https://tiles.mapterhorn.com/tilejson.json' });
+      st.map.addLayer({ id: 'hs', type: 'hillshade', source: 'hs', paint: { 'hillshade-exaggeration': 0.6, 'hillshade-shadow-color': '#6f6a60', 'hillshade-highlight-color': '#ffffff', 'hillshade-accent-color': '#8d877c' } }, firstSym);
+      st.map.addSource('r', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: st.line.map(p => [p[1], p[0]]) } } });
+      st.map.addSource('s', { type: 'geojson', data: { type: 'FeatureCollection', features: st.line.map(p => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [p[1], p[0]] } })) } });
+      st.map.addLayer({ id: 's', type: 'circle', source: 's', paint: { 'circle-radius': 3, 'circle-color': '#ffffff', 'circle-stroke-color': '#ff3b30', 'circle-stroke-width': 1.5 } });
+      st.map.addLayer({ id: 'r', type: 'line', source: 'r', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#ff3b30', 'line-width': 3, 'line-opacity': 0.9 } }, 's');
+      st.ready = true; if (st.want) go(st.want.ll, true);
+    });
+  })();
+  const zoomFor = (a, b) => { if (!a || !b) return 13; const d = RouteMap.km(a, b); return Math.max(6, Math.min(13.5, 13.5 - Math.log2(Math.max(d, 0.3) / 0.6))); };
+  function go(ll, instant) {
+    st.want = { ll }; if (!st.ready) { st.cur = ll; return; }
+    const from = st.cur || ll; st.cur = ll;
+    cancelAnimationFrame(st.raf);
+    const z = zoomFor(from, ll);
+    if (instant || reduce() || (from[0] === ll[0] && from[1] === ll[1])) { st.map.jumpTo({ center: [ll[1], ll[0]], zoom: z }); return; }
+    const zMid = Math.min(z, zoomFor(from, ll) - 0.6), t0 = performance.now(), D = 1400;
+    const step = now => { const t = Math.min(1, (now - t0) / D); const e = t < .5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+      st.map.jumpTo({ center: [from[1] + (ll[1] - from[1]) * e, from[0] + (ll[0] - from[0]) * e], zoom: z - (z - zMid) * Math.sin(Math.PI * e) });
+      st.raf = t < 1 ? requestAnimationFrame(step) : 0; };
+    st.raf = requestAnimationFrame(step);
+  }
+  return { go, destroy: () => { cancelAnimationFrame(st.raf); st.map && st.map.remove(); } };
+}
+
 function mount(root, { trip } = {}) {
   off(); if (!root) return;
   if (window.Fly) cleanup.push(Fly.mount(root));
@@ -155,7 +195,9 @@ function mount(root, { trip } = {}) {
 
   // ----- 뷰파인더 + 배경색 -----
   const vf = root.querySelector('.vf');
-  if (vf && !vf.querySelector('.vf-snd')) vf.insertAdjacentHTML('beforeend', '<span class="vf-snd" aria-hidden="true"><i></i><i></i><i></i></span>');
+  if (vf && !vf.querySelector('.vf-snd')) (vf.querySelector('.vf-l1') || vf).insertAdjacentHTML('beforeend', '<span class="vf-snd" aria-hidden="true"><i></i><i></i><i></i></span>');
+  const mm = miniMap(root, vf); if (mm) cleanup.push(mm.destroy);
+  let lastLL = null, lastPl = '', lastDT = '', moveTimer = 0;
   const medias = () => [...root.querySelectorAll('[data-m]')];
   const blockers = [...root.querySelectorAll('.st-route, .st-fly, .st-map, .st-text, .st-day, .st-contact, .st-end, .st-cover-tx, .st-hint, figcaption, .st-full-cap, .st-badge, .st-play, .st-vtag')];
   const coverTone = root.querySelector('.st-cover')?.dataset.tone;
@@ -178,7 +220,21 @@ function mount(root, { trip } = {}) {
       const key = ds + cur.dataset.t + cur.dataset.pl;
       if (key !== last) {
         vf.querySelector('.vf-d').textContent = ds; vf.querySelector('.vf-t').textContent = cur.dataset.t || '';
-        vf.querySelector('.vf-p').textContent = cur.dataset.pl || ''; vf.querySelector('.vf-p').hidden = !cur.dataset.pl;
+        const pEl = vf.querySelector('.vf-p'); const pl = cur.dataset.pl || '';
+        // 장소가 바뀌면: 작은 지도가 그쪽으로 이동하고 "어디 → 어디"를 잠깐 보여줌
+        const ll = cur.dataset.ll ? cur.dataset.ll.split(',').map(Number) : null;
+        const moved = ll && lastLL && (Math.abs(ll[0] - lastLL[0]) + Math.abs(ll[1] - lastLL[1]) > 0.002);
+        clearTimeout(moveTimer);
+        const dt = (cur.dataset.d || '') + ' ' + (cur.dataset.t || '');
+        if (moved && lastPl && pl && lastPl !== pl && dt > lastDT) {
+          pEl.innerHTML = `${App.esc(lastPl)} <span class="vf-ar">→</span> ${App.esc(pl)}`;
+          const l1 = vf.querySelector('.vf-l1'); const mvEl = vf.querySelector('.vf-mvl');
+          if (cur.dataset.mv && mvEl) { mvEl.textContent = cur.dataset.mv; vf.classList.add('has-mv'); }
+          vf.classList.add('moving'); moveTimer = setTimeout(() => { pEl.textContent = pl; vf.classList.remove('moving', 'has-mv'); }, 2800);
+        } else { pEl.textContent = pl; vf.classList.remove('moving', 'has-mv'); }
+        pEl.hidden = !pl;
+        if (ll && mm) mm.go(ll, !lastLL);
+        if (ll) { lastLL = ll; } if (pl) lastPl = pl; lastDT = dt;
         if (last && !reduce()) { vf.classList.remove('tick'); void vf.offsetWidth; vf.classList.add('tick'); }
         last = key;
       }
@@ -186,8 +242,8 @@ function mount(root, { trip } = {}) {
       vf.classList.add('on');
       // 움직이는 중이어도 도착할 자리로 검사
       const cur0 = vf.getBoundingClientRect(); const safe = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-b')) || 0;
-      const bottom = innerHeight - (document.body.classList.contains('chrome-hidden') ? 18 : 84) - safe;
-      const r = { left: cur0.left, right: cur0.right, top: bottom - cur0.height - 6, bottom: bottom + 6 };
+      const topY = document.body.classList.contains('chrome-hidden') ? 12 : 62;
+      const r = { left: cur0.left, right: cur0.right, top: topY - 6, bottom: topY + cur0.height + 6 };
       const dock = document.querySelector('.fdock');
       const top = document.getElementById('top');
       if (blockers.some(b => hit(r, b.getBoundingClientRect())) || (dock && hit(r, dock.getBoundingClientRect())) || (top && hit(r, top.getBoundingClientRect()))) show = false;
@@ -199,7 +255,7 @@ function mount(root, { trip } = {}) {
   window.addEventListener('scroll', on, { passive: true }); window.addEventListener('resize', on);
   const onEnd = () => on(); vf && vf.addEventListener('transitionend', onEnd);
   const mo = new MutationObserver(on); mo.observe(document.body, { attributes: true, attributeFilter: ['class'] });
-  cleanup.push(() => { window.removeEventListener('scroll', on); window.removeEventListener('resize', on); vf && vf.removeEventListener('transitionend', onEnd); mo.disconnect(); clearTimeout(settle); if (raf) cancelAnimationFrame(raf); });
+  cleanup.push(() => { window.removeEventListener('scroll', on); window.removeEventListener('resize', on); vf && vf.removeEventListener('transitionend', onEnd); mo.disconnect(); clearTimeout(settle); clearTimeout(moveTimer); if (raf) cancelAnimationFrame(raf); });
   fx();
 }
 

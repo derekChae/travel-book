@@ -8,7 +8,7 @@ const isHero = p => !!(p.hero || p.layout === 'big');
 const isVid = p => p.kind === 'video';
 const dur = s => { s = Math.round(s || 0); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const tone = p => p.tone ? `data-tone="${p.tone.join(',')}"` : '';
-const stamp = p => { const d = App.dayKey(p); return `data-t="${p.taken ? p.taken.slice(11, 16) : ''}" data-d="${d || ''}" data-pl="${esc(p.place && p.place.name || '')}"`; };
+const stamp = p => { const d = App.dayKey(p); const c = window.RouteMap && RouteMap.coord(p); return `data-t="${p.taken ? p.taken.slice(11, 16) : ''}" data-d="${d || ''}" data-pl="${esc(p.place && p.place.name || '')}"${c ? ` data-ll="${c[0]},${c[1]}"` : ''}${p.moveBy ? ` data-mv="${esc(p.moveBy.by)}"` : ''}`; };
 
 // 사진 흐름 짜기 (찍은 순서 그대로)
 function blocks(photos) {
@@ -72,7 +72,6 @@ function storyHTML(ctx) {
           : E ? `<button class="st-hint" data-act="edit-day" data-day="${k}">이날 있었던 일을 남겨보세요.</button>` : ''}
       </section>`;
     }
-    if (window.Fly) h += Fly.blockHTML(RouteMap.stops(days.get(k).concat(cover && App.dayKey(cover) === k && !days.get(k).includes(cover) ? [cover] : []).sort((a, b) => (a.taken || '').localeCompare(b.taken || ''))), { title: (() => { const ss = RouteMap.stops(days.get(k)); const a = ss[0] && ss[0].name, z = ss.length > 1 && ss[ss.length - 1].name; return a && z && a !== z ? `${a}에서 ${z}까지` : (k === 'unknown' ? '그날의 길' : `${Render.dayLabel(k)}의 길`); })(), kicker: multi && no ? `DAY ${no} · 그날의 길` : '그날의 길', img: rimg(ctx.shown) });
     for (const b of blocks(days.get(k))) {
       const p = b.ps[0];
       if (b.t === 'full') h += `<section class="st-full${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, 'hero', `style="${pos(p)}"`)}</section><div class="st-full-cap">${esc(cap(p))}</div>${p.note ? `<section class="st-text" ${tapP(p)}>${paras(p.note)}</section>` : ''}`;
@@ -90,14 +89,13 @@ function storyHTML(ctx) {
   const md = p => `${+p.taken.slice(5, 7)}.${+p.taken.slice(8, 10)} ${p.taken.slice(11, 16)}`;
   const dayCount = new Set(all.map(p => App.dayKey(p)).filter(Boolean)).size;
   const facts = [dayCount ? `${dayCount}일` : '', `사진 ${nPhoto}장`, nVid ? `영상 ${nVid}개` : '', timed.length ? `첫 컷 ${md(timed[0])}` : '', timed.length > 1 ? `마지막 컷 ${md(timed[timed.length - 1])}` : ''].filter(Boolean);
-  if (window.Fly) { const withC = new Set(all.filter(p => RouteMap.coord(p)).map(p => App.dayKey(p))); const allStops = RouteMap.stops(all); const perDayMax = Math.max(0, ...[...withC].map(dk => RouteMap.stops(all.filter(p => App.dayKey(p) === dk)).length)); if (withC.size > 1 && allStops.length > perDayMax) h += Fly.blockHTML(RouteMap.stops(all), { title: '여행 전체의 길', kicker: '여행 전체', img: rimg(all) }); }
   h += `<section class="st-contact">
     <div class="cs-head"><span>밀착 인화지</span><span>${all.length}컷</span></div>
     <div class="cs-strip">${all.map((p, i) => `<button class="cs-f" data-jump="${p.id}"><img ${ctx.img(p, 'thumb')} alt=""><span class="cs-n">${String(i + 1).padStart(2, '0')}${isVid(p) ? ' ▶' : ''}</span><span class="cs-t">${p.taken ? p.taken.slice(5, 10).replace('-', '.') + ' ' + p.taken.slice(11, 16) : ''}</span></button>`).join('')}</div>
     <div class="cs-facts">${facts.map(esc).join(' · ')}</div>
   </section>
-  <footer class="st-end"><div class="st-end-t">${esc(info.title)}</div><div>${Render.range(info.start, info.end)}${info.places.length ? ' · ' + esc(info.places.slice(0, 3).join(' · ')) : ''}</div><div class="st-end-b">나의 여행책</div></footer>
-  <div class="vf" aria-hidden="true"><span class="vf-rec"></span><span class="vf-d"></span><span class="vf-t"></span><span class="vf-p"></span></div></article>`;
+  <footer class="st-end"><div class="st-end-t">${esc(info.title)}</div><div>${Render.range(info.start, info.end)}${info.places.length ? ' · ' + esc(info.places.slice(0, 3).join(' · ')) : ''}</div><div class="st-end-b">나의 여행책</div>${window.RouteMap && all.some(p => RouteMap.coord(p)) ? '<div class="st-end-b">지도 © OpenFreeMap · © OpenMapTiles · © OpenStreetMap</div>' : ''}</footer>
+  <div class="vf" aria-hidden="true"><span class="vf-map" hidden><span class="vf-mapc"></span><i class="vf-me"></i></span><span class="vf-txt"><span class="vf-l1"><span class="vf-rec"></span><span class="vf-d"></span><span class="vf-t"></span></span><span class="vf-mvl"></span><span class="vf-p"></span></span></div></article>`;
   return h;
 }
 
