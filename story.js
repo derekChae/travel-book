@@ -43,6 +43,13 @@ function storyHTML(ctx) {
     : `<img ${ctx.img(p, role)} alt="${esc(p.note ? p.note.slice(0, 60) : cap(p))}" ${tapP(p)} ${extra}>${isVid(p) ? `<span class="st-vtag">영상 ${dur(p.duration)}</span>` : ''}`;
   const fig = (p, cls = '', role = 'body') => `<figure class="st-fig ${cls}${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, role, `style="aspect-ratio:${(p.w || 1)}/${(p.h || 1)}"`)}<figcaption>${esc(cap(p))}</figcaption></figure>`;
   const cover = ctx.cover;
+  const shot = (p, cls = '') => {
+    const pan = ar(p) >= 1.15 && !isVid(p) ? ' st-pan' : '';
+    const ov = `<div class="st-ov">${esc(cap(p))}</div>`;
+    // 세로 사진 한 장: PC에서는 같은 사진을 어둡게 크게 깔고 그 위에 사진 전체를 (빈 곳 없이 화면을 채움)
+    if (cls === 'spread') return `<section class="st-full st-shot st-spread${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}><img class="sp-bg" ${ctx.img(p, 'thumb')} alt="" aria-hidden="true">${star(p)}<div class="sp-ph">${media(p, 'hero', `style="${pos(p)}"`)}</div>${ov}</section>`;
+    return `<section class="st-full st-shot ${cls}${pan}${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, 'hero', `style="${pos(p)}"`)}${ov}</section>`;
+  };
   const rimg = (list) => (id, role = 'thumb') => { const p = list.find(q => q.id === id) || { id }; const st = [role === 'body' && p.w && p.h ? `aspect-ratio:${p.w}/${p.h}` : '', p.focus ? `object-position:${p.focus.x}% ${p.focus.y}%` : ''].filter(Boolean).join(';'); return ctx.img(p, role) + (st ? ` style="${st}"` : ''); };
   const sty = t.style || {};
   let h = `<article class="st" data-font="${esc(sty.font || 'maru')}" data-size="${esc(sty.size || 'm')}">
@@ -75,12 +82,12 @@ function storyHTML(ctx) {
     }
     for (const b of blocks(days.get(k))) {
       const p = b.ps[0];
-      if (b.t === 'full') h += `<section class="st-full${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, 'hero', `style="${pos(p)}"`)}</section><div class="st-full-cap">${esc(cap(p))}</div>${p.note ? `<section class="st-text" ${tapP(p)}>${paras(p.note)}</section>` : ''}`;
-      else if (b.t === 'wide') h += fig(p, 'st-wide');
-      else if (b.t === 'tall') h += fig(p, 'st-tall');
-      else if (b.t === 'duo') h += `<div class="st-duo">${fig(b.ps[0])}${fig(b.ps[1])}</div>`;
-      else if (b.t === 'grid') h += `<div class="st-grid">${b.ps.map(q => fig(q)).join('')}</div>`;
-      else if (b.t === 'story') h += `${fig(p, ar(p) >= 1.15 ? 'st-wide' : 'st-tall')}<section class="st-text" ${tapP(p)}>${paras(p.note)}</section>`;
+      // 모든 사진이 화면 한 장을 꽉 채움 (매거진). 가로 사진은 폰에서 스크롤에 따라 옆으로 흘러가며 전체를 보여줌
+      if (b.t === 'duo') h += `<div class="st-pair">${shot(b.ps[0], 'half')}${shot(b.ps[1], 'half')}</div>`;
+      else if (b.t === 'tall' && ar(p) < 0.9) h += shot(p, 'spread');
+      else if (b.t === 'grid') h += b.ps.map(q => shot(q)).join('');
+      else h += shot(p);
+      if (p.note && b.t !== 'duo' && b.t !== 'grid') h += `<section class="st-text" ${tapP(p)}>${paras(p.note)}</section>`;
     }
   });
   // 엔딩: 밀착 인화지 (이 여행의 모든 컷을 필름처럼)

@@ -233,7 +233,8 @@ function mount(root, { trip } = {}) {
   const medias = () => [...root.querySelectorAll('[data-m]')];
   const blockers = [...root.querySelectorAll('.st-route, .st-fly, .st-map, .st-text, .st-day, .st-contact, .st-end, .st-cover-tx, .st-hint, figcaption, .st-full-cap, .st-badge, .st-play, .st-vtag')];
   const coverTone = root.querySelector('.st-cover')?.dataset.tone;
-  const setTone = t => { if (t) root.style.setProperty('--amb', t.split(',').join(' ')); };
+  let toneNow = '';
+  const setTone = t => { if (t && t !== toneNow) { toneNow = t; root.style.setProperty('--amb', t.split(',').join(' ')); } };
   setTone(coverTone);
   let last = '', raf = 0;
   const hit = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0;
@@ -273,8 +274,7 @@ function mount(root, { trip } = {}) {
       // 글·버튼과 겹치면 숨김
       vf.classList.add('on');
       // 움직이는 중이어도 도착할 자리로 검사
-      const cur0 = vf.getBoundingClientRect(); const safe = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-b')) || 0;
-      const topY = document.body.classList.contains('chrome-hidden') ? 12 : 62;
+      const cur0 = vf.getBoundingClientRect();       const topY = document.body.classList.contains('chrome-hidden') ? 12 : 62;
       const r = { left: cur0.left, right: cur0.right, top: topY - 6, bottom: topY + cur0.height + 6 };
       const dock = document.querySelector('.fdock');
       const top = document.getElementById('top');

@@ -277,3 +277,33 @@ html.mv-open, html.mv-open body { overflow: hidden; }
 
 /* 카메라 설정 (사진가용) */
 .st-exif { display: block; margin-top: 3px; font: 500 11px/1.4 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .01em; opacity: .62; font-variant-numeric: tabular-nums; }
+
+/* ===== 매거진: 모든 사진이 화면 한 장 ===== */
+.st-shot { margin: 0; }
+.st-shot + .st-shot, .st-pair + .st-shot, .st-shot + .st-pair, .st-pair + .st-pair { border-top: 0; }
+.st-ov { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; padding: 60px 24px calc(22px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(to top, rgba(0,0,0,.42), transparent); color: rgba(255,255,255,.88); font: 500 12.5px/1.4 "SUIT Variable", -apple-system, sans-serif; font-variant-numeric: tabular-nums; pointer-events: none; }
+.st-pair { display: grid; grid-template-columns: 1fr; }
+.sp-ph { position: absolute; inset: 0; overflow: hidden; }
+.sp-ph > img, .sp-ph > video { width: 100%; height: 100%; object-fit: cover; }
+.sp-tx { display: none; }
+.sp-bg { display: none; }
+/* 앱에서는 왼쪽 위 뷰파인더가 날짜·시각·장소를 보여주므로 사진 위 글씨는 숨김 (공유 페이지에서만 보임) */
+body.is-story .st-ov { display: none; }
+/* 폰: 가로 사진은 화면을 채우고, 스크롤하는 동안 왼쪽에서 오른쪽으로 천천히 흘러감 (사진 전체를 보여줌) */
+@supports (animation-timeline: view()) {
+  @media (max-aspect-ratio: 1/1) {
+    .st-pan > img { width: auto; max-width: none; height: 100%; object-fit: initial; object-position: initial !important; animation: stPan linear both; animation-timeline: view(); animation-range: contain 0% contain 100%; will-change: transform; }
+    @keyframes stPan { from { transform: translateX(0); } to { transform: translateX(calc(-100% + 100vw)); } }
+    .st-pan { height: 170svh; overflow: clip; }
+    .st-pan > img { position: sticky; top: 0; height: 100svh; }
+  }
+}
+@media (min-width: 900px) {
+  .st-ov { padding: 80px 40px 28px; font-size: 13px; }
+  .st-pair { grid-template-columns: 1fr 1fr; }
+  .st-pair .st-full { height: 100svh; }
+  /* 세로 사진 한 장: 뒤에 같은 사진을 어둡게 깔고, 사진 전체를 화면 높이에 맞춤 */
+  .st-spread { background: #0d0d0c; }
+  .st-spread .sp-bg { display: block; position: absolute; inset: -4%; width: 108%; height: 108%; object-fit: cover; opacity: .38; transform: none !important; animation: none !important; }
+  .st-spread .sp-ph > img, .st-spread .sp-ph > video { object-fit: contain; object-position: 50% 50% !important; }
+}

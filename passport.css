@@ -23,11 +23,12 @@ body.is-passport { background: #141414; }
 .pp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px 10px; align-items: center; justify-items: center; padding-top: 10px; }
 .stp { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 4px; border: 0; background: none; color: inherit; cursor: pointer; transform: rotate(var(--r)); -webkit-tap-highlight-color: transparent; }
 .stp-entry { grid-column: span 2; justify-self: center; cursor: default; }
-.stp-svg { display: block; width: 100%; max-width: 200px; image-rendering: pixelated; height: auto; mix-blend-mode: multiply; }
+.stp-svg { display: block; width: 100%; max-width: 200px; height: auto; mix-blend-mode: multiply; }
 .stp-entry .stp-svg { max-width: 240px; }
 .stp-cap { display: none; }
-@media (hover: hover) { button.stp:hover .stp-svg { filter: drop-shadow(0 2px 0 rgba(0,0,0,.08)); transform: scale(1.03); } .stp-svg { transition: transform .2s; } }
+
 .stp.pending { opacity: 0; }
+.stp.pending, .stp.thunk { will-change: transform, opacity; }
 .stp.thunk { animation: thunk .5s cubic-bezier(.2,.9,.3,1.2) both; }
 @keyframes thunk { 0% { opacity: 0; transform: rotate(var(--r)) scale(1.7) translateY(-14px); filter: blur(2px); } 55% { opacity: 1; transform: rotate(var(--r)) scale(.94); filter: none; } 75% { transform: rotate(var(--r)) scale(1.02); } 100% { opacity: 1; transform: rotate(var(--r)) scale(1); } }
 .pp-gear { color: #2b2620; }
@@ -53,4 +54,5 @@ body.is-passport { background: #141414; }
   .stp-entry .stp-svg { max-width: 220px; }
   .gr { grid-template-columns: 90px 1fr 28px; }
 }
-@media (prefers-reduced-motion: reduce) { .stp.thunk { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .stp.pending, .stp.thunk { will-change: transform, opacity; }
+.stp.thunk { animation: none; } }

@@ -91,16 +91,23 @@ async function originalURL(id, ask) {
     const f = await h.getFile(); const u = URL.createObjectURL(f); S.urls.set(key, u); return u;
   } catch { return ''; }
 }
+// 화면에 필요한 만큼만: 2048 사본으로 모자랄 때만 4096 사본, 그것도 모자랄 때(5K 화면 등)만 원본
 async function upgradeToOriginal(img) {
   const [id, kind] = (img.dataset.key || '').split(':');
-  if (kind !== 'disp' && kind !== 'print') return;
-  const p = S.photos.find(x => x.id === id); if (!p || !p.origRef || p.kind === 'video') return;
-  const need = (img.getBoundingClientRect().width || img.clientWidth) * (window.devicePixelRatio || 1);
-  if (need && need < (kind === 'print' ? 1200 : 1700)) return; // 작게 보이는 곳은 사본으로 충분
-  const u = await originalURL(id, false); if (!u || img.dataset.orig === '1') return;
-  const pre = new Image(); pre.src = u;
+  if (kind !== 'disp' || img.dataset.up) return;
+  const p = S.photos.find(x => x.id === id); if (!p || p.kind === 'video') return;
+  const r = img.getBoundingClientRect(); const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  // 화면을 채우는 사진은 잘리는 만큼 더 큰 해상도가 필요
+  const cover = p.w && p.h && r.height ? Math.max(r.width, r.height * p.w / p.h) : r.width;
+  const need = cover * dpr;
+  if (need <= 2048 * 1.1) return;
+  img.dataset.up = '1';
+  let u = need > 4096 * 1.1 && p.origRef ? await originalURL(id, false) : '';
+  if (!u) u = await urlFor(id + ':print');
+  if (!u || u === img.src) return;
+  const pre = new Image(); pre.decoding = 'async'; pre.src = u;
   try { await pre.decode(); } catch { return; }
-  if (img.isConnected) { img.src = u; img.dataset.orig = '1'; }
+  if (img.isConnected) img.src = u;
 }
 async function hydrateAll(root) {
   const imgs = [...root.querySelectorAll('img[data-key]')];
@@ -271,7 +278,7 @@ function ensureFont(key) {
 function storyCtx(t, { edit = false, img } = {}) {
   const { info, plan, ctx } = bookCtx(t, { edit });
   return { info, plan, sctx: { ...ctx, info: ctx.info, trip: t, edit, shown: plan.shown, cover: plan.cover,
-    img: img || ((p, role) => `data-key="${p.id}:${role === 'hero' ? 'print' : role === 'thumb' ? 'thumb' : 'disp'}" src="${BLANK}"`) } };
+    img: img || ((p, role) => `data-key="${p.id}:${role === 'thumb' ? 'thumb' : 'disp'}" src="${BLANK}" decoding="async"`) } };
 }
 function renderStory(id) {
   const t = S.trips.find(x => x.id === id);

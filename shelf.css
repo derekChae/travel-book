@@ -115,7 +115,7 @@ body.is-home .top, body.is-home .fdock { transition: transform .25s ease; }
 .bc-cover { position: relative; display: block; aspect-ratio: 4 / 5; background: #000; overflow: hidden; --st-bold: "MaruBuriBold", "MaruBuri", serif; }
 .bc-cover .card-img { transform: none; transition: transform .8s cubic-bezier(.22,1,.36,1); }
 .bc-cover::after { content: ""; position: absolute; inset: auto 0 0 0; height: 58%; background: linear-gradient(to top, rgba(0,0,0,.72), transparent); pointer-events: none; }
-.bc-no, .bc-ago { position: absolute; top: 12px; z-index: 2; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,.5); font: 700 12px var(--sans); color: #fff; backdrop-filter: blur(6px); font-variant-numeric: tabular-nums; }
+.bc-no, .bc-ago { position: absolute; top: 12px; z-index: 2; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,.5); font: 700 12px var(--sans); color: #fff; font-variant-numeric: tabular-nums; }
 .bc-no { left: 12px; }
 .bc-ago { right: 12px; background: #f08a24; color: #1a1205; }
 .bc-ct { position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; display: block; padding: 16px 18px 18px; color: #fff; }
@@ -174,7 +174,7 @@ body.is-folder { --fd-head: 74px; }
 .cf-b1 { left: 5%; right: 5%; bottom: 8px; width: 90%; height: calc(100% - 16px); filter: brightness(.55); }
 .cf-b2 { left: 10%; right: 10%; bottom: 16px; width: 80%; height: calc(100% - 16px); filter: brightness(.32); }
 .cf-blank { background: #2a2926; filter: none; }
-.cf-cnt { right: 10px; bottom: 10px; left: auto; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,.55); font: 700 12px var(--sans); color: #fff; backdrop-filter: blur(6px); }
+.cf-cnt { right: 10px; bottom: 10px; left: auto; padding: 4px 10px; border-radius: 999px; background: rgba(0,0,0,.55); font: 700 12px var(--sans); color: #fff; }
 @media (hover: hover) { .cf:hover .cf-b1 { transform: translateY(-6px); } .cf:hover .cf-b2 { transform: translateY(-11px); } .cf:hover .cf-main { transform: translateY(2px); } }
 .cf:active .cf-stack { scale: .985; }
 .cf-tx { display: flex; flex-direction: column; gap: 4px; padding: 0 2px; }
