@@ -41,9 +41,8 @@ function storyHTML(ctx) {
   const media = (p, role, extra = '') => canVid(p) && !p.posterOnly
     ? `<video class="st-v" ${ctx.img(p, role).replace(/\bsrc=/, 'data-poster=')} data-vkey="${p.id}:video" data-vid="${p.id}" muted playsinline loop preload="none" ${extra}></video><button class="st-play" data-play="${p.id}" aria-label="소리 켜고 보기"><span class="pl-i" aria-hidden="true"></span>${p.preview ? '미리보기' : dur(p.duration)}</button>`
     : `<img ${ctx.img(p, role)} alt="${esc(p.note ? p.note.slice(0, 60) : cap(p))}" ${tapP(p)} ${extra}>${isVid(p) ? `<span class="st-vtag">영상 ${dur(p.duration)}</span>` : ''}`;
-  const fig = (p, cls = '', role = 'body') => `<figure class="st-fig ${cls}${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, role, `style="aspect-ratio:${(p.w || 1)}/${(p.h || 1)}"`)}<figcaption>${esc(cap(p))}${exif(p)}</figcaption></figure>`;
+  const fig = (p, cls = '', role = 'body') => `<figure class="st-fig ${cls}${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, role, `style="aspect-ratio:${(p.w || 1)}/${(p.h || 1)}"`)}<figcaption>${esc(cap(p))}</figcaption></figure>`;
   const cover = ctx.cover;
-  const exif = p => { const x = !isVid(p) && (t.style || {}).exif !== false && Meta.shotText(p.shot); return x ? `<span class="st-exif">${esc(x)}</span>` : ''; };
   const rimg = (list) => (id, role = 'thumb') => { const p = list.find(q => q.id === id) || { id }; const st = [role === 'body' && p.w && p.h ? `aspect-ratio:${p.w}/${p.h}` : '', p.focus ? `object-position:${p.focus.x}% ${p.focus.y}%` : ''].filter(Boolean).join(';'); return ctx.img(p, role) + (st ? ` style="${st}"` : ''); };
   const sty = t.style || {};
   let h = `<article class="st" data-font="${esc(sty.font || 'maru')}" data-size="${esc(sty.size || 'm')}">
@@ -76,7 +75,7 @@ function storyHTML(ctx) {
     }
     for (const b of blocks(days.get(k))) {
       const p = b.ps[0];
-      if (b.t === 'full') h += `<section class="st-full${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, 'hero', `style="${pos(p)}"`)}</section><div class="st-full-cap">${esc(cap(p))}${exif(p)}</div>${p.note ? `<section class="st-text" ${tapP(p)}>${paras(p.note)}</section>` : ''}`;
+      if (b.t === 'full') h += `<section class="st-full${isVid(p) ? ' is-vid' : ''}" data-m="${p.id}" ${stamp(p)} ${tone(p)}>${star(p)}${media(p, 'hero', `style="${pos(p)}"`)}</section><div class="st-full-cap">${esc(cap(p))}</div>${p.note ? `<section class="st-text" ${tapP(p)}>${paras(p.note)}</section>` : ''}`;
       else if (b.t === 'wide') h += fig(p, 'st-wide');
       else if (b.t === 'tall') h += fig(p, 'st-tall');
       else if (b.t === 'duo') h += `<div class="st-duo">${fig(b.ps[0])}${fig(b.ps[1])}</div>`;

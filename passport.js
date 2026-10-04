@@ -118,7 +118,6 @@ async function render() {
   const seen = new Set(JSON.parse(localStorage.getItem(SEEN) || '[]'));
   const fresh = [];
   const view = document.getElementById('view');
-  const gear = gearStats();
   view.innerHTML = `<div class="shelf-root quiet">
     <header class="top" id="top"><button class="back" data-go="#/">‹ 책장</button><div class="top-title">나의 여권</div><span style="width:64px"></span></header>
     <section class="pp-cover">
@@ -137,7 +136,6 @@ async function render() {
         ${C.list.map(P => `<button class="stp" data-k="${esc(C.name + ':' + P.name)}" data-go="#/trip/${P.trip.id}" style="--r:${(hash(P.name) % 17) - 8}deg" aria-label="${esc(P.name)} 도장, ${ymd(P.first)}"></button>`).join('')}
       </div>
     </section>`).join('')}
-    ${gear ? `<section class="pp-page pp-gear"><div class="pp-ph"><span class="pp-cn">내 카메라</span><span class="pp-cm">사진 ${gear.n}장 기준</span></div>${gear.html}</section>` : ''}
     <div class="page-bottom-space"></div></div>`;
   // 도장 그리기
   for (const C of list) {

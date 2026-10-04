@@ -111,7 +111,7 @@ const imgTag = (p, kind) => `<img data-key="${p.id}:${kind}" src="${BLANK}" alt=
 function dockHtml(inTrip) {
   const folderOk = ('showDirectoryPicker' in window || 'webkitdirectory' in document.createElement('input')) && !/iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (inTrip) return `<div class="dock dock-3"><button class="btn-sub" data-act="add">+ 사진</button><button class="btn-main" data-act="voice"><span class="mic-ico" aria-hidden="true"></span>말로 남기기</button><button class="btn-sub" data-act="ai">AI로 글쓰기</button></div>`;
-  return `<nav class="fdock" aria-label="사진 넣기"><button class="fd-main" data-act="add"><span class="fi fi-plus" aria-hidden="true"></span>${folderOk ? '날짜로 사진 넣기' : '사진 넣기'}</button>${folderOk ? '<button data-act="pick-files-direct">직접 고르기</button>' : ''}</nav>`;
+  return `<nav class="fdock" aria-label="사진 넣기"><button class="fd-main" data-act="add"><span class="fi fi-plus" aria-hidden="true"></span>사진 넣기</button></nav>`;
 }
 
 // ---------- 책장 ----------
@@ -125,7 +125,7 @@ function countryOf(i) {
 }
 function shelfView() {
   const v = localStorage.getItem('shelfView');
-  return v === 'swipe' || v === 'grid' || v === 'index' ? v : (matchMedia('(max-width: 760px)').matches ? 'swipe' : 'grid');
+  return v === 'swipe' || v === 'grid' ? v : (matchMedia('(max-width: 760px)').matches ? 'swipe' : 'grid');
 }
 function renderHome({ quiet = false, folder = null } = {}) {
   document.title = folder ? folder + ' · 나의 여행책' : '나의 여행책';
@@ -144,7 +144,7 @@ function renderHome({ quiet = false, folder = null } = {}) {
     const ps = list.flatMap(x => x.i.ps); const years = [...new Set(list.map(x => x.i.start && x.i.start.slice(0, 4)).filter(Boolean))].sort();
     let html = `<div class="shelf-root quiet">
       <header class="top" id="top"><button class="back" data-go="#/">‹ 책장</button><div class="top-title fd-tt">${esc(folder)}</div>
-        <div class="shelf-mode"><button data-shelf="swipe" aria-pressed="${mode === 'swipe'}">가로보기</button><button data-shelf="grid" aria-pressed="${mode === 'grid'}">격자보기</button><button data-shelf="index" aria-pressed="${mode === 'index'}">목록</button></div></header>
+        <div class="shelf-mode"><button data-shelf="swipe" aria-pressed="${mode === 'swipe'}">가로보기</button><button data-shelf="grid" aria-pressed="${mode === 'grid'}">격자보기</button></div></header>
       <section class="fd-head"><h1>${esc(folder)}</h1><span>여행 ${list.length}권 · 사진 ${nPh(ps)}장${nV(ps) ? ` · 영상 ${nV(ps)}개` : ''}${years.length ? ' · ' + (years.length > 1 ? `${years[0]}–${years[years.length - 1]}` : years[0]) : ''}</span></section>`;
     if (mode !== 'index') {
       const phone = mode;
@@ -158,9 +158,7 @@ function renderHome({ quiet = false, folder = null } = {}) {
           <span class="bc-no">No.${no}</span>${ago ? `<span class="bc-ago">${ago}년 전 오늘</span>` : ''}
           <span class="bc-ct"><span class="bc-k">${esc([i.countries.join(' · '), i.places.slice(0, 2).join(' · ')].filter(Boolean).join(' · '))}</span><span class="pk-t bc-t">${esc(i.title)}</span></span></span>
         <span class="bc-body"><span class="bc-m">${fmtRange(i.start, i.end)} · ${sizeOf(i)}${t.published ? ' · 발행됨' : ''}</span>
-          ${t.lede ? `<span class="bc-lede">${esc(t.lede)}</span>` : ''}
-          ${heroes.length ? `<span class="bc-hl">${heroes.map(p => `<img data-key="${p.id}:thumb" src="${BLANK}" alt="">`).join('')}</span>` : ''}
-          <span class="bc-go">펼쳐보기</span></span>
+          ${t.lede ? `<span class="bc-lede">${esc(t.lede)}</span>` : ''}</span>
       </button>`; }).join('')}</div>`;
     } else {
     html += `<ol class="ix">${items.map(({ t, i, no, c }, j) => `<li style="--j:${j}">

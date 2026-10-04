@@ -117,6 +117,7 @@ async function importFiles(files) {
       if (batch.length >= 12) await flushBatch();
     }
     await flushBatch();
+    await borrowPlaces(newPhotos);
   } catch (e) {
     console.error(e); closeSheet(true); try { lock?.release(); } catch { }
     openSheet(`<h3>저장하지 못했어요</h3><p>기기 저장 공간이 부족하거나 브라우저가 저장을 막았어요. ${newPhotos.length ? `앞의 ${newPhotos.length}장은 저장됐어요.` : '아무것도 바뀌지 않았어요.'}</p><div class="sheet-actions"><button class="done" data-close>확인</button></div>`);
@@ -147,6 +148,19 @@ async function importFiles(files) {
 }
 
 // ---------- 사진 한 장 ----------
+// 위치 정보가 없는 카메라 사진: 30분 안에 찍은 다른 사진(폰)의 장소를 빌려 씀. 10분 넘게 떨어지면 '근처'로 표시
+async function borrowPlaces(list) {
+  const ms = s => Date.parse(s + 'Z');
+  const geo = S.photos.filter(q => q.taken && q.place && q.place.name && q.place.source !== 'time');
+  for (const p of list) {
+    if (!p.taken || p.lat != null || (p.place && p.place.name)) continue;
+    const t = ms(p.taken); let best = null, bd = 30 * 60000 + 1;
+    for (const q of geo) { if (q.id === p.id) continue; const d = Math.abs(ms(q.taken) - t); if (d < bd) { bd = d; best = q; } }
+    if (!best) continue;
+    p.place = { ...best.place, source: 'time', near: bd > 10 * 60000 || !!best.place.near, evidence: `같은 시각(${Math.round(bd / 60000)}분 차이)에 찍은 사진의 위치` };
+    await DB.putPhoto(p);
+  }
+}
 async function openPhoto(id) {
   const p = S.photos.find(x => x.id === id); if (!p) return;
   const t = S.trips.find(x => x.id === p.tripId);
@@ -165,14 +179,13 @@ async function openPhoto(id) {
     <dl class="facts">
       <dt>찍은 때</dt><dd>${when ? esc(when) : '<span class="unknown">사진에 날짜 정보가 없어요</span>'}</dd>
       <dt>장소</dt><dd>${where ? esc(where) : '<span class="unknown">사진에 위치 정보가 없어요</span>'}</dd>
-      <dt>화질</dt><dd>${p.origRef ? '원본 연결 · 크게 볼 때 원본 그대로' : p.kind === 'video' ? (p.videoRef ? '원본 영상 연결' : '6초 미리보기') : '고화질 사본 (긴 변 4096px)'}</dd>
+      ${p.shot && p.kind !== 'video' ? `<dt>카메라</dt><dd class="exif-dd">${esc(Meta.shotText(p.shot))}</dd>` : ''}
     </dl>
     ${!p.taken ? `<label class="saved" for="adate">날짜를 알면 넣어주세요</label><input type="date" id="adate" value="${p.assignedDate || ''}" style="margin-bottom:12px">` : ''}
     <label for="note" class="sr">이 사진 이야기</label>
     <textarea id="note" placeholder="이 사진 이야기 (쓰면 사진 옆에 글이 함께 실려요)">${esc(p.note)}</textarea>
     <div class="saved" id="note-st"></div>
-    <div class="seg-label">이 사진을</div>
-    <div class="seg" id="sizeSeg">${[['auto', '보통'], ['big', '화면 가득'], ['small', '작게']].map(([k, l]) => `<button data-size="${k}" aria-pressed="${size === k}">${l}</button>`).join('')}</div>
+    <div class="seg" id="sizeSeg" style="margin-top:12px">${[['auto', '보통 크기'], ['big', '화면 가득']].map(([k, l]) => `<button data-size="${k}" aria-pressed="${(size === 'small' ? 'auto' : size) === k}">${l}</button>`).join('')}</div>
     ${similar.length ? `<div class="seg-label">비슷한 사진 ${similar.length}장 (숨겨져 있어요, 누르면 책에 넣어요)</div>
       <div class="thumbs">${(await Promise.all(similar.map(async q => `<button data-show="${q.id}"><img alt="" src="${await urlFor(q.id + ':thumb')}"></button>`))).join('')}</div>` : ''}
     <div class="sheet-actions">
@@ -397,13 +410,11 @@ document.addEventListener('click', async e => {
   else if (act === 'pick') { const t = curTrip(); closeSheet(true); openPicker(t); }
   else if (act === 'style') { const t = curTrip(); closeSheet(true); openStyle(t); }
   else if (act === 'share-menu') openShareMenu(curTrip());
-  else if (act === 'trip-more') { const t = curTrip(); openSheet(`<h3>편집 · 보내기</h3><div class="pick-list">
+  else if (act === 'trip-more') { const t = curTrip(); openSheet(`<h3>편집</h3><div class="pick-list">
       <button data-act="pick"><b>사진 고르기</b><small>표지 · 화면 가득 · 빼기를 누르면 바로 바뀌어요</small></button>
-      <button data-act="edit-title"><b>제목 바꾸기</b><small>${esc(tripInfo(t).title)}</small></button>
       <button data-act="style"><b>글꼴 · 글자 크기</b><small>${esc((App.FONTS[(t.style || {}).font] || App.FONTS.maru).name)}</small></button>
       <button data-act="publish"><b>링크로 보여주기</b><small>비밀번호를 아는 사람만 볼 수 있어요</small></button>
-      <button data-act="export"><b>파일로 내보내기</b><small>책 PDF · AI·노션용 파일 · 블로그용 글</small></button>
-      <button data-go="#/book/${t.id}" data-close><b>책 모양으로 보기</b><small>인쇄했을 때 페이지 모양</small></button></div>`); }
+      <button data-act="export"><b>책 PDF · 파일로 내보내기</b><small>인쇄용 책 · 블로그용 글 · 사진 묶음</small></button></div>`); }
   else if (act === 'hide-photo') {
     const p = S.photos.find(x => x.id === a.dataset.id); p.hidden = true; delete p.show; await DB.putPhoto(p); closeSheet();
     toast('책에서 뺐어요. 사진은 그대로 있어요.', 4000, { label: '되돌리기', run: async () => { delete p.hidden; await DB.putPhoto(p); rerender(); } });

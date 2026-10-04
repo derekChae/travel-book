@@ -272,3 +272,5 @@ body.chrome-hidden .pvbar { transform: translate(-50%, 170%); }
 .rv-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .rv-chips button { height: 38px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: #fff; font: 600 14px var(--sans); }
 .rv-chips button[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+.exif-dd { font: 500 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace; }

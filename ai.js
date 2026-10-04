@@ -157,12 +157,15 @@ function applyPhoto(p, r) {
   if (p.id === r.cover) delete p.hidden;
 }
 async function applyAnswer(t, r) {
+  const stampsBefore = window.Passport ? Passport.collect().stats.places : 0;
   const ps = S.photos.filter(p => p.tripId === t.id);
   const before = { title: t.title, lede: t.lede, dayNotes: { ...(t.dayNotes || {}) }, coverId: t.coverId, photos: {} };
   ps.forEach(p => { before.photos[p.id] = { note: p.note || '', hero: p.hero, hidden: p.hidden, focus: p.focus, layout: p.layout, show: p.show, place: p.place, moveBy: p.moveBy }; });
   applyTrip(t, r); await DB.putTrip(t);
   for (const p of ps) { applyPhoto(p, r); await DB.putPhoto(p); }
   App.rerender();
+  const newStamps = window.Passport ? Passport.collect().stats.places - stampsBefore : 0;
+  if (newStamps > 0) setTimeout(() => toast(`새 도장 ${newStamps}개가 찍혔어요`, 5000, { label: '여권 보기', run: () => App.go('#/passport') }), 6200);
   toast('편집안대로 채웠어요', 6000, { label: '되돌리기', run: async () => {
     t.title = before.title; t.lede = before.lede; t.dayNotes = before.dayNotes; t.coverId = before.coverId; await DB.putTrip(t);
     for (const p of ps) { const o = before.photos[p.id]; p.note = o.note; ['hero', 'hidden', 'focus', 'layout', 'show', 'place', 'moveBy'].forEach(k => { if (o[k] === undefined) delete p[k]; else p[k] = o[k]; }); await DB.putPhoto(p); }
@@ -331,7 +334,6 @@ async function runBuiltin(t, d, sh) {
 async function open(t) {
   const d = tripData(t);
   if (!d.shown.length) { toast('먼저 사진을 넣어 주세요'); return; }
-  const bi = await builtinStatus();
   const canShareFiles = !!(navigator.canShare && navigator.canShare({ files: [new File([new Blob(['x'], { type: 'image/jpeg' })], 'a.jpg', { type: 'image/jpeg' })] }));
   const sh = App.openSheet(`<h3>AI로 글쓰기</h3>
     <p>사진 ${d.attach.length}장과 편집 규칙을 AI에게 보내요. AI가 서로 다른 안 3개를 만들어요. 붙여넣으면 나란히 비교하고 실제 책 모양으로 넘겨볼 수 있어요. 마음에 드는 안이 없으면 다르게 해 달라고 다시 부탁해요.</p>
@@ -340,7 +342,6 @@ async function open(t) {
       ${canShareFiles ? `<button id="go-share"><b>1. ChatGPT · Gemini 앱으로 보내기</b><small>공유 창에서 앱을 고르면 사진과 요청문이 같이 들어가요</small></button>` : ''}
       <button id="go-copy"><b>${canShareFiles ? '또는 ' : '1. '}요청문 복사${canShareFiles ? '' : ' + 사진 저장'}</b><small>${canShareFiles ? '앱에 글이 안 들어가면 이걸 복사해서 붙여넣어요' : 'AI 사이트에 요청문을 붙여넣고 저장한 사진을 첨부해요'}</small></button>
       <button id="go-paste"><b>2. AI 답 붙여넣기</b><small>세 안을 비교하고 책 모양으로 먼저 봐요</small></button>
-      ${bi !== 'none' && bi !== 'unavailable' ? `<button id="go-bi"><b>이 PC에서 바로 쓰기 (크롬 내장 AI)</b><small>무료, 이 기기 안에서만 처리. 품질은 큰 AI보다 낮을 수 있어요</small></button><div class="saved" id="bi-st"></div>` : ''}
     </div>
     <div class="saved" id="ai-st"></div>`);
   const st = $('#ai-st', sh);
