@@ -59,6 +59,7 @@ function pickFilesInput() {
 async function importFiles(files) {
   files = files.filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name) || Meta.isVideo(f));
   if (!files.length) { toast('넣을 사진이 없어요'); return; }
+  leaveDemo();
   const sh = openSheet(`<h3>사진 정리하는 중</h3><div class="progress"><i></i></div><div class="saved" id="prog-txt">0 / ${files.length}</div>
     <div class="tip">사진이 많으면 조금 걸려요. 화면을 켜 둔 채로 기다려 주세요. 중간에 멈춰도 정리된 사진은 저장돼 있어요.</div>`);
   const bar = $('.progress i', sh), txt = $('#prog-txt', sh);
@@ -451,16 +452,30 @@ document.addEventListener('click', async e => {
   else if (act === 'restore') { closeSheet(); importBackup(); }
 });
 
+// ---------- 예시 여행책 (처음 켰을 때 빈 화면 대신. 저장하지 않고 보여주기만, 사진을 넣으면 사라짐) ----------
+async function loadDemo() {
+  try {
+    const d = await (await fetch('demo/demo.json')).json();
+    S.demo = true; S.trips = d.trips.map(t => ({ ...t, demo: true })); S.photos = d.photos.map(p => ({ ...p, demo: true }));
+    d.photos.forEach(p => ['disp', 'print', 'thumb'].forEach(k => S.urls.set(p.id + ':' + k, `demo/${p.img}-${k === 'thumb' ? 'thumb' : 'disp'}.jpg`)));
+  } catch (e) { console.warn('예시를 불러오지 못했어요', e); }
+}
+function leaveDemo() {
+  if (!S.demo) return;
+  S.demo = false; S.trips = []; S.photos = []; S.urls.clear();
+  localStorage.removeItem('stampsSeen');
+}
 // ---------- 시작 ----------
 (async () => {
   try {
     const [trips, photos] = await Promise.all([DB.allTrips(), DB.allPhotos()]);
     S.trips = trips; S.photos = photos;
+    if (!trips.length && !photos.length) await loadDemo();
   } catch (e) { console.error(e); toast('저장소를 열지 못했어요. 비공개 창에서는 저장이 안 될 수 있어요.', 5000); }
   if (document.readyState === 'loading') await new Promise(r => document.addEventListener('DOMContentLoaded', r, { once: true }));
   route();
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) navigator.serviceWorker.register('sw.js').catch(() => { });
 })();
-window.Actions = { importFiles, exportBackup, pickFiles, openPhoto };
+window.Actions = { loadDemo, leaveDemo, importFiles, exportBackup, pickFiles, openPhoto };
 App.openSheet = openSheet; App.closeSheet = closeSheet;
 })();

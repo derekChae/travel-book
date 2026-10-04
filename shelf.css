@@ -184,3 +184,9 @@ body.is-folder { --fd-head: 74px; }
 @media (max-width: 760px) { .cf-n { font-size: 22px; } .cf-stack { padding-top: 12px; } .cf-b1 { bottom: 6px; } .cf-b2 { bottom: 12px; } .cf-main, .cf-b1, .cf-b2 { height: calc(100% - 12px); } }
 @media (prefers-reduced-motion: reduce) { .cf { animation: none; opacity: 1; transform: none; } .cf-stack > * { transition: none; } }
 @media (prefers-reduced-motion: reduce) { .bc { animation: none; opacity: 1; transform: none; } }
+
+/* 예시 여행책 */
+.demo-note { max-width: 520px; margin: 22px 0 0; font: 500 15px/1.65 var(--sans); color: #c9c5bd; }
+.demo-note b { color: #f3f1ec; }
+.demo-tag { flex: none; padding: 4px 10px; margin-right: 8px; border-radius: 999px; background: rgba(0,0,0,.45); color: #fff; font: 600 12px var(--sans); }
+.top.scrolled .demo-tag { background: #efece5; color: #6b675f; }

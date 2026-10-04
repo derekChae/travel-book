@@ -111,7 +111,7 @@ const imgTag = (p, kind) => `<img data-key="${p.id}:${kind}" src="${BLANK}" alt=
 function dockHtml(inTrip) {
   const folderOk = ('showDirectoryPicker' in window || 'webkitdirectory' in document.createElement('input')) && !/iPhone|iPad|iPod/i.test(navigator.userAgent);
   if (inTrip) return `<div class="dock dock-3"><button class="btn-sub" data-act="add">+ 사진</button><button class="btn-main" data-act="voice"><span class="mic-ico" aria-hidden="true"></span>말로 남기기</button><button class="btn-sub" data-act="ai">AI로 글쓰기</button></div>`;
-  return `<nav class="fdock" aria-label="사진 넣기"><button class="fd-main" data-act="add"><span class="fi fi-plus" aria-hidden="true"></span>사진 넣기</button></nav>`;
+  return `<nav class="fdock" aria-label="사진 넣기"><button class="fd-main" data-act="add"><span class="fi fi-plus" aria-hidden="true"></span>${S.demo ? '내 사진으로 시작하기' : '사진 넣기'}</button></nav>`;
 }
 
 // ---------- 책장 ----------
@@ -177,9 +177,10 @@ function renderHome({ quiet = false, folder = null } = {}) {
   // 첫 화면: 나라별 폴더
   let html = `<div class="shelf-root${q ? ' quiet' : ''}">
     <header class="top" id="top"><div class="brand">나의 여행책</div><div style="flex:1"></div>
-      ${all.length ? '<button class="pp-btn" data-go="#/passport"><span class="pp-ico" aria-hidden="true"></span>여권</button><button class="icon-btn" data-act="home-menu">더보기</button>' : ''}</header>
+      ${all.length ? '<button class="pp-btn" data-go="#/passport"><span class="pp-ico" aria-hidden="true"></span>여권</button>' + (S.demo ? '' : '<button class="icon-btn" data-act="home-menu">더보기</button>') : ''}</header>
     <section class="sh-intro"><div class="sh-count">${all.length ? `여행 ${all.length}권 · 사진 ${nPh(S.photos)}장${nV(S.photos) ? ` · 영상 ${nV(S.photos)}개` : ''}` : '처음 오셨네요'}</div>
-      <h1 class="sh-title"><span class="ln">${split('나의', 0)}</span><span class="ln">${split('여행책', 2)}</span></h1></section>`;
+      <h1 class="sh-title"><span class="ln">${split('나의', 0)}</span><span class="ln">${split('여행책', 2)}</span></h1>
+      ${S.demo ? '<p class="demo-note">예시 여행책이에요. 둘러보다가 <b>내 사진으로 시작하기</b>를 누르면 예시는 사라지고 내 여행책이 만들어져요.</p>' : ''}</section>`;
   if (all.length) {
     const memT = all.map(({ t, i }) => ({ t, i, d: i.days.find(x => x.slice(5) === md && +x.slice(0, 4) < now.getFullYear()) })).filter(x => x.d).pop();
     if (memT) { const c = coverOf(memT.t, memT.i); html += `<section class="sh-mem-wrap"><button class="sh-mem" data-go="#/trip/${memT.t.id}" data-trip-go="${memT.t.id}">${c ? `<img data-key="${c.id}:thumb" src="${BLANK}" alt="">` : ''}<span><b>${now.getFullYear() - +memT.d.slice(0, 4)}년 전 오늘</b>${esc(memT.i.title)}</span></button></section>`; }
@@ -277,16 +278,19 @@ function renderStory(id) {
   if (!t) { location.hash = '#/'; return; }
   document.body.className = 'is-story';
   ensureFont((t.style || {}).font);
-  const { info, sctx } = storyCtx(t, { edit: true });
+  const { info, sctx } = storyCtx(t, { edit: !S.demo });
   document.title = info.title + ' · 나의 여행책';
   view().innerHTML = `<header class="top on-cover" id="top"><button class="back" data-go="#/c/${encodeURIComponent(countryOf(info))}">‹ ${esc(countryOf(info))}</button>
       <div class="top-title">${esc(info.title)}</div>
-      ${info.ps.some(p => p.kind === 'video') ? '<button class="icon-btn ib-snd" data-act="amb" aria-pressed="false" aria-label="현장음"></button>' : ''}<button class="icon-btn" data-act="trip-more">편집</button></header>
+      ${info.ps.some(p => p.kind === 'video') ? '<button class="icon-btn ib-snd" data-act="amb" aria-pressed="false" aria-label="현장음"></button>' : ''}${S.demo ? '<span class="demo-tag">예시</span>' : '<button class="icon-btn" data-act="trip-more">편집</button>'}</header>
     <div data-trip="${t.id}">${Story.storyHTML(sctx)}</div>
-    ${storyDock()}`;
+    ${S.demo ? demoDock() : storyDock()}`;
   hydrate(view());
   onScrollTop();
   if (window.Motion) Motion.mount(view().querySelector('.st'), { trip: t });
+}
+function demoDock() {
+  return `<nav class="fdock" aria-label="사진 넣기"><button class="fd-main" data-act="add"><span class="fi fi-plus" aria-hidden="true"></span>내 사진으로 시작하기</button></nav>`;
 }
 function storyDock() {
   return `<nav class="fdock" aria-label="기록 도구"><button data-act="add"><span class="fi fi-plus" aria-hidden="true"></span>사진</button><button class="fd-main" data-act="voice"><span class="fi fi-mic" aria-hidden="true"></span>말로 남기기</button><button data-act="ai">AI 글쓰기</button></nav>`;
