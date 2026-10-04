@@ -179,7 +179,7 @@ function renderHome({ quiet = false, folder = null } = {}) {
   // 첫 화면: 나라별 폴더
   let html = `<div class="shelf-root${q ? ' quiet' : ''}">
     <header class="top" id="top"><div class="brand">나의 여행책</div><div style="flex:1"></div>
-      ${all.length ? '<button class="icon-btn" data-act="home-menu">더보기</button>' : ''}</header>
+      ${all.length ? '<button class="pp-btn" data-go="#/passport"><span class="pp-ico" aria-hidden="true"></span>여권</button><button class="icon-btn" data-act="home-menu">더보기</button>' : ''}</header>
     <section class="sh-intro"><div class="sh-count">${all.length ? `여행 ${all.length}권 · 사진 ${nPh(S.photos)}장${nV(S.photos) ? ` · 영상 ${nV(S.photos)}개` : ''}` : '처음 오셨네요'}</div>
       <h1 class="sh-title"><span class="ln">${split('나의', 0)}</span><span class="ln">${split('여행책', 2)}</span></h1></section>`;
   if (all.length) {
@@ -336,6 +336,7 @@ function route() {
   if ((m = h.match(/^#\/trip\/(.+)$/))) { window.scrollTo(0, 0); renderStory(decodeURIComponent(m[1])); }
   else if ((m = h.match(/^#\/book\/(.+)$/))) { window.scrollTo(0, 0); renderTrip(decodeURIComponent(m[1])); }
   else if ((m = h.match(/^#\/print\/(.+)$/))) { window.scrollTo(0, 0); renderPrint(decodeURIComponent(m[1])); }
+  else if (h === '#/passport') { window.scrollTo(0, 0); Passport.render(); }
   else if ((m = h.match(/^#\/c\/(.+)$/))) { const f = decodeURIComponent(m[1]); const y = folderY.get(f) || 0; renderHome({ folder: f }); window.scrollTo(0, y); }
   else { renderHome(); window.scrollTo(0, homeY); }
 }
@@ -344,6 +345,7 @@ function rerender() {
   let m;
   if ((m = h.match(/^#\/trip\/(.+)$/))) renderStory(decodeURIComponent(m[1]));
   else if ((m = h.match(/^#\/book\/(.+)$/))) renderTrip(decodeURIComponent(m[1]));
+  else if (h === '#/passport') Passport.render();
   else if ((m = h.match(/^#\/c\/(.+)$/))) renderHome({ quiet: true, folder: decodeURIComponent(m[1]) });
   else if (!h.startsWith('#/print')) renderHome({ quiet: true });
   window.scrollTo(0, y);

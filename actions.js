@@ -95,7 +95,7 @@ async function importFiles(files) {
         const id = uid();
         batch.push({ id, tripId: null, kind: vid ? 'video' : 'photo', duration: vid ? im.duration : undefined, tone: im.tone || null,
           taken: info.taken, offset: info.offset, timeSource: info.timeSource, lat: info.lat, lon: info.lon,
-          place, camera: info.camera, w: im.w, h: im.h, note: '', fileName: f.name, size: f.size, type: f.type, sig, addedSeq: Date.now() + (seq++), addedAt: new Date().toISOString() });
+          place, camera: info.camera, shot: info.shot || undefined, w: im.w, h: im.h, note: '', fileName: f.name, size: f.size, type: f.type, sig, addedSeq: Date.now() + (seq++), addedAt: new Date().toISOString() });
         blobs.push([id + ':print', im.print], [id + ':disp', im.disp], [id + ':thumb', im.thumb]);
         if (!vid && f._handle) { blobs.push([id + ':ohandle', f._handle]); batch[batch.length - 1].origRef = true; }
         if (vid) {

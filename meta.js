@@ -15,15 +15,40 @@ function parseOffset(raw) {
   return m ? `${m[1]}${m[2]}:${m[3]}` : null;
 }
 
+// 카메라 설정 (사진가용): 기종, 렌즈, 초점거리, 조리개, 셔터, ISO
+function shotOf(x) {
+  const num = v => Array.isArray(v) ? +v[0] : (v && typeof v === 'object' && 'numerator' in v) ? v.numerator / v.denominator : +v;
+  const s = {};
+  const make = String(x.Make || '').trim(), model = String(x.Model || '').trim();
+  if (model) s.body = model.toLowerCase().startsWith(make.toLowerCase()) ? model : (make && !/^(samsung|apple|google)$/i.test(make) ? `${make} ${model}` : model);
+  if (x.LensModel) s.lens = String(x.LensModel).trim();
+  const f = num(x.FNumber); if (f > 0) s.f = Math.round(f * 10) / 10;
+  const e = num(x.ExposureTime); if (e > 0) s.t = e;
+  const iso = num(x.ISO || x.ISOSpeedRatings || x.PhotographicSensitivity); if (iso > 0) s.iso = Math.round(iso);
+  const fl = num(x.FocalLength); if (fl > 0) s.mm = Math.round(fl * 10) / 10;
+  const f35 = num(x.FocalLengthIn35mmFormat); if (f35 > 0) s.mm35 = Math.round(f35);
+  return Object.keys(s).length ? s : null;
+}
+async function readShot(file) {
+  try { const x = await exifr.parse(file, { tiff: true, exif: true, gps: false, reviveValues: false, translateValues: false, pick: ['Make', 'Model', 'LensModel', 'FNumber', 'ExposureTime', 'ISO', 'ISOSpeedRatings', 'PhotographicSensitivity', 'FocalLength', 'FocalLengthIn35mmFormat'] }); return x ? shotOf(x) : null; } catch { return null; }
+}
+function shotText(s) {
+  if (!s) return '';
+  const t = s.t ? (s.t >= 1 ? `${+s.t.toFixed(1)}s` : `1/${Math.round(1 / s.t)}`) : '';
+  const lens = s.lens && !(s.body && s.lens.toLowerCase().includes(s.body.toLowerCase())) && !/camera$/i.test(s.lens) ? s.lens : '';
+  const mm = s.mm35 || (s.mm ? Math.round(s.mm) : 0);
+  return [s.body, lens, mm ? `${mm}mm` : '', s.f ? `f/${s.f}` : '', t, s.iso ? `ISO ${s.iso}` : ''].filter(Boolean).join(' · ');
+}
 async function readPhotoInfo(file) {
-  const info = { taken: null, offset: null, timeSource: null, lat: null, lon: null, camera: null };
+  const info = { taken: null, offset: null, timeSource: null, lat: null, lon: null, camera: null, shot: null };
   try {
     const x = await exifr.parse(file, { tiff: true, exif: true, gps: false, reviveValues: false, translateValues: false,
-      pick: ['DateTimeOriginal', 'OffsetTimeOriginal', 'CreateDate', 'OffsetTime', 'Make', 'Model'] });
+      pick: ['DateTimeOriginal', 'OffsetTimeOriginal', 'CreateDate', 'OffsetTime', 'Make', 'Model', 'LensModel', 'FNumber', 'ExposureTime', 'ISO', 'ISOSpeedRatings', 'PhotographicSensitivity', 'FocalLength', 'FocalLengthIn35mmFormat'] });
     if (x) {
       const t = parseExifDate(x.DateTimeOriginal);
       if (t) { info.taken = t; info.offset = parseOffset(x.OffsetTimeOriginal) || parseOffset(x.OffsetTime); info.timeSource = 'exif'; }
       info.camera = [x.Make, x.Model].filter(Boolean).join(' ').trim() || null;
+      info.shot = shotOf(x);
     }
   } catch (e) { /* 정보가 없는 사진 */ }
   try {
@@ -131,7 +156,7 @@ function localFromUtc(ms, offset) {
   return new Date(ms + sign * (hh * 60 + mm) * 60000).toISOString().slice(0, 19);
 }
 async function readVideoInfo(file, offsetGuess) {
-  const info = { taken: null, offset: null, timeSource: null, lat: null, lon: null, camera: null };
+  const info = { taken: null, offset: null, timeSource: null, lat: null, lon: null, camera: null, shot: null };
   const byName = timeFromName(file.name);
   let meta = { utc: null, lat: null, lon: null };
   try { meta = await mp4Meta(file); } catch { }
@@ -288,4 +313,4 @@ function assignTrips(newPhotos, trips, allPhotos, makeTrip) {
   return { touched, created };
 }
 
-window.Meta = { makePreviewClip, toneOf, isVideo, readVideoInfo, makeVideoImages, mp4Meta, timeFromName, readPhotoInfo, makeImages, placeFor, loadCities, sortPhotos, assignTrips, absTime, dayOf, dayDiff, parseExifDate, parseOffset };
+window.Meta = { shotOf, readShot, shotText, makePreviewClip, toneOf, isVideo, readVideoInfo, makeVideoImages, mp4Meta, timeFromName, readPhotoInfo, makeImages, placeFor, loadCities, sortPhotos, assignTrips, absTime, dayOf, dayDiff, parseExifDate, parseOffset };

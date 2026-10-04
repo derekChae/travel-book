@@ -274,3 +274,6 @@ html.mv-open, html.mv-open body { overflow: hidden; }
   .st[data-size="s"] .st-text { font-size: 17px; } .st[data-size="s"] .st-lede { font-size: 20px; }
   .st[data-size="l"] .st-text { font-size: 22px; } .st[data-size="l"] .st-lede { font-size: 26px; }
 }
+
+/* 카메라 설정 (사진가용) */
+.st-exif { display: block; margin-top: 3px; font: 500 11px/1.4 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing: .01em; opacity: .62; font-variant-numeric: tabular-nums; }
